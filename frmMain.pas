@@ -1,9 +1,12 @@
 unit frmMain;
 
+{$MODE Delphi}
+
 interface
 
 uses
-  Windows, Messages, SysUtils, Classes, Graphics, Controls, Forms, Dialogs,
+  LCLIntf, LCLType, LMessages, Messages, SysUtils, Classes, Graphics,
+  Controls, Forms, Dialogs,
   StdCtrls, ComCtrls, Buttons, ExtCtrls, Menus, ToolWin, ImgList;
 
 type
@@ -16,7 +19,7 @@ type
     FileMenu: TMenuItem;
     FileOpen: TMenuItem;
     FileExit: TMenuItem;
-    RichEdit1: TRichEdit;
+    RichEdit1: TMemo;
     FileSaveAs: TMenuItem;
     ToolsMenu: TMenuItem;
     ToolsPref: TMenuItem;
@@ -54,9 +57,9 @@ var
 
 implementation
 
-uses PasConv, CppConv, frmPreferences, frmAbout;
+uses PasConv, CppConv, frmAbout;
 
-{$R *.DFM}
+{$R *.lfm}
 
 procedure TMainForm.SetCurFileName(const Value: string);
 begin
@@ -76,10 +79,12 @@ var
   stream1, stream2: TFileStream;
   fmt: TPasToRTF;
 begin
-  if OpenDialog1.Execute then begin
+  if OpenDialog1.Execute then
+  begin
     SaveDialog1.DefaultExt := 'rtf';
     SaveDialog1.Filter := 'Rich Text Format|*.rtf|All files|*.*';
-    if SaveDialog1.Execute then begin
+    if SaveDialog1.Execute then
+    begin
       stream1 := TFileStream.Create(OpenDialog1.FileName, fmOpenRead);
       stream2 := TFileStream.Create(SaveDialog1.FileName, fmCreate);
       fmt := TPasToRTF.Create;
@@ -96,10 +101,12 @@ var
   stream1, stream2: TFileStream;
   fmt: TPasToHTML;
 begin
-  if OpenDialog1.Execute then begin
+  if OpenDialog1.Execute then
+  begin
     SaveDialog1.DefaultExt := 'html';
     SaveDialog1.Filter := 'HTML Document|*.html|All files|*.*';
-    if SaveDialog1.Execute then begin
+    if SaveDialog1.Execute then
+    begin
       stream1 := TFileStream.Create(OpenDialog1.FileName, fmOpenRead);
       stream2 := TFileStream.Create(SaveDialog1.FileName, fmCreate);
       fmt := TPasToHTML.Create;
@@ -163,9 +170,6 @@ end;
 
 procedure TMainForm.ToolsPrefClick(Sender: TObject);
 begin
-  with PreferencesForm do begin
-    ShowModal;
-  end;
 end;
 
 procedure TMainForm.HelpAboutClick(Sender: TObject);
@@ -174,15 +178,16 @@ begin
 end;
 
 procedure TMainForm.OpenFile(const FileName: string);
-var s: string;
+var
+  s: string;
 begin
   s := ExtractFileExt(FileName);
-  if (AnsiSameText(s,'.cpp') or AnsiSameText(s,'.c') or AnsiSameText(s,'.h')) then
+  if (AnsiSameText(s, '.cpp') or AnsiSameText(s, '.c') or AnsiSameText(s, '.h')) then
     OpenCppFile(FileName)
-  else if (AnsiSameText(s,'.pas') or AnsiSameText(s,'.dpr')) then
+  else if (AnsiSameText(s, '.pas') or AnsiSameText(s, '.dpr')) then
     OpenPasFile(FileName)
   else
-    MessageDlg('Αυτή η μορφή δεν υποστηρίζεται (' + s + ').', mtError, [mbOk], 0);
+    MessageDlg('Ξ‘Ο…Ο„Ξ® Ξ· ΞΌΞΏΟΟ†Ξ® Ξ΄ΞµΞ½ Ο…Ο€ΞΏΟƒΟ„Ξ·ΟΞ―Ξ¶ΞµΟ„Ξ±ΞΉ (' + s + ').', mtError, [mbOK], 0);
 end;
 
 procedure TMainForm.FileSaveAsClick(Sender: TObject);
@@ -191,46 +196,48 @@ var
   fmt2: TCppFormatter;
   stream1, stream2: TFileStream;
 begin
-  if FDocType <> dtNone then begin
-    if SaveDialog1.Execute then begin
+  if FDocType <> dtNone then
+  begin
+    if SaveDialog1.Execute then
+    begin
       stream1 := TFileStream.Create(FCurFilename, fmOpenRead);
       stream2 := TFileStream.Create(SaveDialog1.FileName, fmCreate);
       case FDocType of
         dtCpp:
           case SaveDialog1.FilterIndex of
             1:
-              begin
-                fmt2 := TCppToRTF.Create;
-                fmt2.FormatStream(stream1, stream2);
-                fmt2.Free;
-              end;
+            begin
+              fmt2 := TCppToRTF.Create;
+              fmt2.FormatStream(stream1, stream2);
+              fmt2.Free;
+            end;
             2:
-              begin
-                fmt2 := TCppToHTML.Create;
-                fmt2.FormatStream(stream1, stream2);
-                fmt2.Free;
-              end;
+            begin
+              fmt2 := TCppToHTML.Create;
+              fmt2.FormatStream(stream1, stream2);
+              fmt2.Free;
+            end;
             else
               raise Exception.Create('Invalid CPP Converter');
-            end;
-          dtPascal:
+          end;
+        dtPascal:
           case SaveDialog1.FilterIndex of
             1:
-              begin
-                fmt1 := TPasToRTF.Create;
-                fmt1.FormatStream(stream1, stream2);
-                fmt1.Free;
-              end;
+            begin
+              fmt1 := TPasToRTF.Create;
+              fmt1.FormatStream(stream1, stream2);
+              fmt1.Free;
+            end;
             2:
-              begin
-                fmt1 := TPasToHTML.Create;
-                fmt1.FormatStream(stream1, stream2);
-                fmt1.Free;
-              end;
+            begin
+              fmt1 := TPasToHTML.Create;
+              fmt1.FormatStream(stream1, stream2);
+              fmt1.Free;
+            end;
             else
               raise Exception.Create('Invalid PAS Converter');
-            end;
           end;
+      end;
 
       stream2.Free;
       stream1.Free;

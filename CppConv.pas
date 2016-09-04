@@ -1,13 +1,15 @@
 unit CppConv;
 
+{$MODE Delphi}
+
 interface
 
 uses SysUtils, Classes;
 
 type
   TCppTokenState = (tsAssembler, tsComment, tsCRLF, tsIdentifier,
-                    tsKeyWord, tsNumber, tsSpace, tsString, tsSymbol,
-                    tsPreprocessor, tsUnknown);
+    tsKeyWord, tsNumber, tsSpace, tsString, tsSymbol,
+    tsPreprocessor, tsUnknown);
   TCppCommentState = (csAnsi, csNo, csSlashes);
 
   TCppFormatter = class
@@ -16,7 +18,7 @@ type
     FOutStream: TStream;
     FTokenState: TCppTokenState;
     Run, TokenPtr: PChar;
-    TokenLen: Integer;
+    TokenLen: integer;
     TokenStr: string;
   public
     procedure FormatStream(InStream, OutStream: TStream);
@@ -25,7 +27,7 @@ type
     procedure HandleCRLF;
     procedure HandleSlashesC;
     procedure HandleString;
-    function IsKeyWord(aToken: String): Boolean;
+    function IsKeyWord(aToken: string): boolean;
     procedure SetSpecial(var str: string); virtual;
     procedure WriteFooter; virtual;
     procedure WriteHeader; virtual;
@@ -47,19 +49,20 @@ type
     procedure WriteHeader; override;
   end;
 
-const CppKeyWords: array [0..59] of string =
-('_cs',       '_ds',        '_es',       '_export',   '_fastcall',
- '_loadds',   '_saveregs',  '_seg',      '_ss',       'asm',
- 'auto',      'break',      'case',      'cdecl',     'char',
- 'class',     'const',      'continue',  'default',   'delete',
- 'do',        'double',     'else',      'enum',      'extern',
- 'far',       'float',      'for',       'friend',    'goto',
- 'huge',      'if',         'inline',    'int',       'interrupt',
- 'long',      'near',       'new',       'operator',  'pascal',
- 'private',   'protected',  'public',    'register',  'return',
- 'short',     'signed',     'sizeof',    'static',    'struct',
- 'switch',    'template',   'this',      'typedef',   'union',
- 'unsigned',  'virtual',    'void',      'volatile',  'while');
+const
+  CppKeyWords: array [0..59] of string =
+    ('_cs', '_ds', '_es', '_export', '_fastcall',
+    '_loadds', '_saveregs', '_seg', '_ss', 'asm',
+    'auto', 'break', 'case', 'cdecl', 'char',
+    'class', 'const', 'continue', 'default', 'delete',
+    'do', 'double', 'else', 'enum', 'extern',
+    'far', 'float', 'for', 'friend', 'goto',
+    'huge', 'if', 'inline', 'int', 'interrupt',
+    'long', 'near', 'new', 'operator', 'pascal',
+    'private', 'protected', 'public', 'register', 'return',
+    'short', 'signed', 'sizeof', 'static', 'struct',
+    'switch', 'template', 'this', 'typedef', 'union',
+    'unsigned', 'virtual', 'void', 'volatile', 'while');
 
 procedure CppToHTMLFile(const CppFile, HTMLFile: string);
 procedure CppToRTFFile(const CppFile, RTFFile: string);
@@ -96,115 +99,123 @@ end;
 
 procedure TCppFormatter.FormatStream(InStream, OutStream: TStream);
 var
-  FReadBuf : PChar;
-  i: Integer;
+  FReadBuf: PChar;
+  i: integer;
 begin
   FOutStream := OutStream;
   WriteHeader;
   GetMem(FReadBuf, InStream.Size + 1);
   i := InStream.Read(FReadBuf^, InStream.Size);
   FReadBuf[i] := #0;
-  if i > 0 then begin
+  if i > 0 then
+  begin
     Run := FReadBuf;
     TokenPtr := Run;
-    while Run^ <> #0 do begin
-      Case Run^ of
+    while Run^ <> #0 do
+    begin
+      case Run^ of
         #13:
         begin
-          FComment:= csNo;
+          FComment := csNo;
           HandleCRLF;
         end;
 
         #1..#9, #11, #12, #14..#32:
         begin
-          while Run^ in [#1..#9, #11, #12, #14..#32] do inc(Run);
-          FTokenState:= tsSpace;
-          TokenLen:= Run - TokenPtr;
+          while Run^ in [#1..#9, #11, #12, #14..#32] do
+            Inc(Run);
+          FTokenState := tsSpace;
+          TokenLen := Run - TokenPtr;
           SetString(TokenStr, TokenPtr, TokenLen);
           FormatToken(TokenStr, FTokenState);
-//          SetSpecial;
+          //          SetSpecial;
           WriteOut(TokenStr);
-          TokenPtr:= Run;
+          TokenPtr := Run;
         end;
 
         'A'..'Z', 'a'..'z', '_':
         begin
-          FTokenState:= tsIdentifier;
-          inc(Run);
-          while Run^ in ['A'..'Z', 'a'..'z', '0'..'9', '_'] do inc(Run);
-          TokenLen:= Run - TokenPtr;
+          FTokenState := tsIdentifier;
+          Inc(Run);
+          while Run^ in ['A'..'Z', 'a'..'z', '0'..'9', '_'] do
+            Inc(Run);
+          TokenLen := Run - TokenPtr;
           SetString(TokenStr, TokenPtr, TokenLen);
-          if IsKeyWord(TokenStr) then FTokenState:= tsKeyWord;
+          if IsKeyWord(TokenStr) then
+            FTokenState := tsKeyWord;
           FormatToken(TokenStr, FTokenState);
           WriteOut(TokenStr);
-          TokenPtr:= Run;
+          TokenPtr := Run;
         end;
 
         '0'..'9':
         begin
-          inc(Run);
-          FTokenState:= tsNumber;
-          while Run^ in ['0'..'9', '.', 'e', 'E'] do inc(Run);
-          TokenLen:= Run - TokenPtr;
+          Inc(Run);
+          FTokenState := tsNumber;
+          while Run^ in ['0'..'9', '.', 'e', 'E'] do
+            Inc(Run);
+          TokenLen := Run - TokenPtr;
           SetString(TokenStr, TokenPtr, TokenLen);
-//          SetSpecial;
+          //          SetSpecial;
           WriteOut(TokenStr);
-          TokenPtr:= Run;
+          TokenPtr := Run;
         end;
 
-        '{', '}', '!', '%', '&', '('..'/', ':'..'@', '['..'^', '`', '~' :
+        '{', '}', '!', '%', '&', '('..'/', ':'..'@', '['..'^', '`', '~':
         begin
-          FTokenState:= tsSymbol;
-          while Run^ in ['{', '}', '!', '%', '&', '('..'/', ':'..'@', '['..'^', '`', '~'] do
+          FTokenState := tsSymbol;
+          while Run^ in ['{', '}', '!', '%', '&', '('..'/', ':'..'@',
+              '['..'^', '`', '~'] do
           begin
-            Case Run^ of
+            case Run^ of
               '/': if (Run + 1)^ = '/' then
-                   begin
-                     TokenLen:= Run - TokenPtr;
-                     SetString(TokenStr, TokenPtr, TokenLen);
-//                     SetSpecial;
-                     WriteOut(TokenStr);
-                     TokenPtr:= Run;
-                     FComment:= csSlashes;
-                     HandleSlashesC;
-                     break;
-                   end
+                begin
+                  TokenLen := Run - TokenPtr;
+                  SetString(TokenStr, TokenPtr, TokenLen);
+                  //                     SetSpecial;
+                  WriteOut(TokenStr);
+                  TokenPtr := Run;
+                  FComment := csSlashes;
+                  HandleSlashesC;
+                  break;
+                end
 
-                   else if (Run + 1)^ = '*' then
-                   begin
-                     TokenLen:= Run - TokenPtr;
-                     SetString(TokenStr, TokenPtr, TokenLen);
-//                     SetSpecial;
-                     WriteOut(TokenStr);
-                     TokenPtr:= Run;
-                     FComment:= csAnsi;
-                     HandleAnsiC;
-                     break;
-                   end;
+                else if (Run + 1)^ = '*' then
+                begin
+                  TokenLen := Run - TokenPtr;
+                  SetString(TokenStr, TokenPtr, TokenLen);
+                  //                     SetSpecial;
+                  WriteOut(TokenStr);
+                  TokenPtr := Run;
+                  FComment := csAnsi;
+                  HandleAnsiC;
+                  break;
+                end;
             end;
-            inc(Run);
+            Inc(Run);
           end;
-          TokenLen:= Run - TokenPtr;
+          TokenLen := Run - TokenPtr;
           SetString(TokenStr, TokenPtr, TokenLen);
           SetSpecial(TokenStr);
           WriteOut(TokenStr);
-          TokenPtr:= Run;
+          TokenPtr := Run;
         end;
 
         '"': HandleString;
         '#':
         begin
-          FTokenState:= tsPreprocessor;
-          while (Run^ <> #13) do inc(Run);
-          TokenLen:= Run - TokenPtr;
+          FTokenState := tsPreprocessor;
+          while (Run^ <> #13) do
+            Inc(Run);
+          TokenLen := Run - TokenPtr;
           SetString(TokenStr, TokenPtr, TokenLen);
           FormatToken(TokenStr, FTokenState);
-//          SetSpecial;
+          //          SetSpecial;
           WriteOut(TokenStr);
-          TokenPtr:= Run;
+          TokenPtr := Run;
         end;
 
-(*        '$':
+          (*        '$':
         begin
           FTokenState:= tsNumber;
           while Run^ in ['$','0'..'9', 'A'..'F', 'a'..'f'] do inc(Run);
@@ -217,14 +228,17 @@ begin
 
         else
         begin
-          if Run^ <> #0 then begin
-            inc(Run);
-            TokenLen:= Run - TokenPtr;
+          if Run^ <> #0 then
+          begin
+            Inc(Run);
+            TokenLen := Run - TokenPtr;
             SetString(TokenStr, TokenPtr, TokenLen);
-//            SetSpecial;
+            //            SetSpecial;
             WriteOut(TokenStr);
-            TokenPtr:= Run;
-          end else break;
+            TokenPtr := Run;
+          end
+          else
+            break;
         end;
       end;
     end;
@@ -241,89 +255,96 @@ procedure TCppFormatter.HandleAnsiC;
 begin
   while Run^ <> #0 do
   begin
-    Case Run^ of
+    case Run^ of
       #13:
+      begin
+        if TokenPtr <> Run then
         begin
-          if TokenPtr <> Run then
-          begin
-            FTokenState:= tsComment;
-            TokenLen:= Run - TokenPtr;
-            SetString(TokenStr, TokenPtr, TokenLen);
+          FTokenState := tsComment;
+          TokenLen := Run - TokenPtr;
+          SetString(TokenStr, TokenPtr, TokenLen);
 
-            SetSpecial(TokenStr);
-            FormatToken(TokenStr, FTokenState);
-            WriteOut(TokenStr);
-            TokenPtr:= Run;
-          end;
-          HandleCRLF;
-          dec(Run);
+          SetSpecial(TokenStr);
+          FormatToken(TokenStr, FTokenState);
+          WriteOut(TokenStr);
+          TokenPtr := Run;
         end;
+        HandleCRLF;
+        Dec(Run);
+      end;
 
-      '*': if (Run +1 )^ = '/' then begin  inc(Run, 2); break; end;
+      '*': if (Run + 1)^ = '/' then
+        begin
+          Inc(Run, 2);
+          break;
+        end;
     end;
-    inc(Run);
+    Inc(Run);
   end;
-  FTokenState:= tsComment;
-  TokenLen:= Run - TokenPtr;
+  FTokenState := tsComment;
+  TokenLen := Run - TokenPtr;
   SetString(TokenStr, TokenPtr, TokenLen);
   SetSpecial(TokenStr);
   FormatToken(TokenStr, FTokenState);
   WriteOut(TokenStr);
-  TokenPtr:= Run;
-  FComment:= csNo;
+  TokenPtr := Run;
+  FComment := csNo;
 end;  { HandleAnsiC }
 
 procedure TCppFormatter.HandleCRLF;
 begin
-  if Run^ = #0 then Exit;
+  if Run^ = #0 then
+    Exit;
   Inc(Run, 2);
-  FTokenState:= tsCRLF;
-  TokenLen:= Run - TokenPtr;
+  FTokenState := tsCRLF;
+  TokenLen := Run - TokenPtr;
   SetString(TokenStr, TokenPtr, TokenLen);
   FormatToken(TokenStr, FTokenState);
   WriteOut(TokenStr);
-  TokenPtr:= Run;
-  fComment:= csNo;
-  FTokenState:= tsUnKnown;
-  if Run^ = #13 then HandleCRLF;
+  TokenPtr := Run;
+  fComment := csNo;
+  FTokenState := tsUnKnown;
+  if Run^ = #13 then
+    HandleCRLF;
 end;  { HandleCRLF }
 
 procedure TCppFormatter.HandleSlashesC;
 begin
-  FTokenState:= tsComment;
-  while (Run^ <> #13) and (Run^ <> #0) do inc(Run);
-  TokenLen:= Run - TokenPtr;
+  FTokenState := tsComment;
+  while (Run^ <> #13) and (Run^ <> #0) do
+    Inc(Run);
+  TokenLen := Run - TokenPtr;
   SetString(TokenStr, TokenPtr, TokenLen);
   SetSpecial(TokenStr);
   FormatToken(TokenStr, FTokenState);
   WriteOut(TokenStr);
-  TokenPtr:= Run;
-  FComment:= csNo;
+  TokenPtr := Run;
+  FComment := csNo;
 end;  { HandleSlashesC }
 
 procedure TCppFormatter.HandleString;
 begin
-  FTokenState:= tsString;
-  FComment:= csNo;
+  FTokenState := tsString;
+  FComment := csNo;
   repeat
-    Case Run^ of
-      #0, #10, #13: raise exception.Create('Invalid string');
+    case Run^ of
+      #0, #10, #13: raise Exception.Create('Invalid string');
     end;
-    inc(Run);
+    Inc(Run);
   until Run^ = '"';
-  inc(Run);
-  TokenLen:= Run - TokenPtr;
+  Inc(Run);
+  TokenLen := Run - TokenPtr;
   SetString(TokenStr, TokenPtr, TokenLen);
   SetSpecial(TokenStr);
   FormatToken(TokenStr, FTokenState);
   WriteOut(TokenStr);
-  TokenPtr:= Run;
+  TokenPtr := Run;
 end;  { HandleString }
 
 
-function TCppFormatter.IsKeyWord(aToken: String):Boolean;
+function TCppFormatter.IsKeyWord(aToken: string): boolean;
 var
-  First, Last, I, Compare: Integer;
+  First, Last, I, Compare: integer;
 begin
   First := Low(CppKeywords);
   Last := High(CppKeywords);
@@ -333,12 +354,15 @@ begin
     I := (First + Last) shr 1;
     Compare := CompareStr(CppKeywords[i], aToken);
     if Compare = 0 then
-      begin
-        Result:=True;
-        break;
-      end
+    begin
+      Result := True;
+      break;
+    end
     else
-    if Compare < 0  then First := I + 1 else Last := I - 1;
+    if Compare < 0 then
+      First := I + 1
+    else
+      Last := I - 1;
   end;
 end;  { IsKeyWord }
 
@@ -359,8 +383,9 @@ procedure TCppFormatter.WriteOut(const str: string);
 var
   b, Buf: PChar;
 begin
-  if Length(str) > 0 then begin
-    GetMem(Buf, Length(str)+1);
+  if Length(str) > 0 then
+  begin
+    GetMem(Buf, Length(str) + 1);
     StrCopy(Buf, PChar(str));
     b := Buf;
     FOutStream.Write(Buf^, Length(str));
@@ -379,7 +404,7 @@ end;
 procedure TCppToRTF.FormatToken(var NewToken: string; TokenState: TCppTokenState);
 begin
   case TokenState of
-    tsCRLF:    NewToken := '\par' + NewToken;
+    tsCRLF: NewToken := '\par' + NewToken;
     tsKeyWord: NewToken := '\b ' + NewToken + '\b0 ';
     tsComment: NewToken := '\cf1\i ' + NewToken + '\cf0\i0 ';
     tsPreprocessor: NewToken := '\cf2 ' + NewToken + '\cf0 ';
@@ -388,14 +413,15 @@ end;
 
 procedure TCppToRTF.SetSpecial(var str: string);
 var
-  i: Integer;
-  Result : string;
+  i: integer;
+  Result: string;
 begin
   Result := '';
-  for i:=1 to Length(str) do
+  for i := 1 to Length(str) do
     case str[i] of
       '\', '{', '}': Result := Result + '\' + str[i];
-      else Result := Result + str[i];
+      else
+        Result := Result + str[i];
     end;
   str := Result;
 end;
@@ -423,28 +449,29 @@ begin
     tsCRLF: NewToken := '<BR>' + NewToken;
     tsSpace: SetSpecial(NewToken);
     tsKeyWord: NewToken := '<B>' + NewToken + '</B>';
-    tsComment: NewToken := '<FONT COLOR=#000080><I>'+NewToken+'</I></FONT>';
+    tsComment: NewToken := '<FONT COLOR=#000080><I>' + NewToken + '</I></FONT>';
   end;
 end;
 
 procedure TCppToHTML.SetSpecial(var str: string);
 var
-  i: Integer;
+  i: integer;
   Result: string;
 begin
   Result := '';
-  for i:=1 to Length(str) do
+  for i := 1 to Length(str) do
     case str[i] of
       '<': Result := Result + '&lt;';
       '>': Result := Result + '&gt;';
       '&': Result := Result + '&amp;';
       '"': Result := Result + '&quot;';
       ' ':
-           if (i < Length(str)) and (str[i+1] = ' ') then
-             Result := Result + '&nbsp;'
-           else
-             Result := Result + ' ';
-      else Result := Result + str[i];
+        if (i < Length(str)) and (str[i + 1] = ' ') then
+          Result := Result + '&nbsp;'
+        else
+          Result := Result + ' ';
+      else
+        Result := Result + str[i];
     end;
   str := Result;
 end;
