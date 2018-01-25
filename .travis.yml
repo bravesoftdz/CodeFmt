@@ -1,0 +1,6 @@
+language: generic
+sudo: required
+dist: trusty
+
+script:
+- lazbuild *.lpi
