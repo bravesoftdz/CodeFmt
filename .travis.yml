@@ -2,5 +2,10 @@ language: generic
 sudo: required
 dist: trusty
 
+install:
+- sudo apt-get install lazarus lcl-nogui
+- fpc -i
+- lazbuild -v
+
 script:
 - lazbuild *.lpi
