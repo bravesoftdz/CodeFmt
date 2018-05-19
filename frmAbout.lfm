@@ -62,7 +62,7 @@ object AboutForm: TAboutForm
       Width = 103
       Height = 19
       Alignment = taCenter
-      Caption = 'Έκδοση 1.0.2'
+      Caption = 'Έκδοση 1.2.0'
       Transparent = True
     end
     object Label4: TLabel

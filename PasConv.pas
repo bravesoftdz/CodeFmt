@@ -12,8 +12,17 @@ type
     tsString, tsSymbol, tsUnknown);
   TPasCommentState = (csAnsi, csBor, csNo, csSlashes);
 
+  TFormatterBase = class
+    function FormatToken(const NewToken: string; TokenState: TPasTokenState): string;
+      virtual; abstract;
+    function SetSpecial(const str: string): string; virtual; abstract;
+    procedure WriteFooter(OutStream: TStream); virtual; abstract;
+    procedure WriteHeader(OutStream: TStream); virtual; abstract;
+  end;
+
   TPasFormatter = class
   private
+    FFormatter: TFormatterBase;
     FComment: TPasCommentState;
     FDiffer: boolean;
     FOutStream: TStream;
@@ -22,8 +31,8 @@ type
     TokenLen: integer;
     TokenStr: string;
   public
+    constructor Create(Formatter: TFormatterBase);
     procedure FormatStream(InStream, OutStream: TStream);
-    procedure FormatToken(var NewToken: string; TokenState: TPasTokenState); virtual;
     procedure HandleAnsiC;
     procedure HandleBorC;
     procedure HandleCRLF;
@@ -32,25 +41,24 @@ type
     function IsDiffKey(aToken: string): boolean;
     function IsDirective(aToken: string): boolean;
     function IsKeyWord(aToken: string): boolean;
-    function SetSpecial(const str: string): string; virtual;
-    procedure WriteFooter; virtual;
-    procedure WriteHeader; virtual;
     procedure WriteOut(const str: string);
     procedure WriteOutLn(const str: string);
   end;
 
-  TPasToRTF = class(TPasFormatter)
-    procedure FormatToken(var NewToken: string; TokenState: TPasTokenState); override;
+  TPasToRTF = class(TFormatterBase)
+    function FormatToken(const NewToken: string; TokenState: TPasTokenState): string;
+      override;
     function SetSpecial(const str: string): string; override;
-    procedure WriteFooter; override;
-    procedure WriteHeader; override;
+    procedure WriteFooter(OutStream: TStream); override;
+    procedure WriteHeader(OutStream: TStream); override;
   end;
 
-  TPasToHTML = class(TPasFormatter)
-    procedure FormatToken(var NewToken: string; TokenState: TPasTokenState); override;
+  TPasToHTML = class(TFormatterBase)
+    function FormatToken(const NewToken: string; TokenState: TPasTokenState): string;
+      override;
     function SetSpecial(const str: string): string; override;
-    procedure WriteFooter; override;
-    procedure WriteHeader; override;
+    procedure WriteFooter(OutStream: TStream); override;
+    procedure WriteHeader(OutStream: TStream); override;
   end;
 
 const
@@ -87,29 +95,40 @@ implementation
 procedure PasToHTMLFile(const PasFile, HTMLFile: string);
 var
   fmt: TPasToHTML;
+  p: TPasFormatter;
   stream1, stream2: TFileStream;
 begin
   stream1 := TFileStream.Create(PasFile, fmOpenRead);
   stream2 := TFileStream.Create(HTMLFile, fmCreate);
   fmt := TPasToHTML.Create;
-  fmt.FormatStream(stream1, stream2);
+  p := TPasFormatter.Create(fmt);
+  p.FormatStream(stream1, stream2);
   fmt.Free;
   stream1.Free;
   stream2.Free;
+  p.Free;
 end;
 
 procedure PasToRTFFile(const PasFile, RTFFile: string);
 var
   fmt: TPasToRTF;
   stream1, stream2: TFileStream;
+  p: TPasFormatter;
 begin
   stream1 := TFileStream.Create(PasFile, fmOpenRead);
   stream2 := TFileStream.Create(RTFFile, fmCreate);
   fmt := TPasToRTF.Create;
-  fmt.FormatStream(stream1, stream2);
+  p := TPasFormatter.Create(fmt);
+  p.FormatStream(stream1, stream2);
   fmt.Free;
   stream1.Free;
   stream2.Free;
+  p.Free;
+end;
+
+constructor TPasFormatter.Create(Formatter: TFormatterBase);
+begin
+  FFormatter := Formatter;
 end;
 
 procedure TPasFormatter.FormatStream(InStream, OutStream: TStream);
@@ -118,7 +137,7 @@ var
   i: integer;
 begin
   FOutStream := OutStream;
-  WriteHeader;
+  FFormatter.WriteHeader(OutStream);
   GetMem(FReadBuf, InStream.Size + 1);
   i := InStream.Read(FReadBuf^, InStream.Size);
   FReadBuf[i] := #0;
@@ -142,9 +161,7 @@ begin
           FTokenState := tsSpace;
           TokenLen := Run - TokenPtr;
           SetString(TokenStr, TokenPtr, TokenLen);
-          FormatToken(TokenStr, FTokenState);
-          //          SetSpecial;
-          WriteOut(TokenStr);
+          WriteOut(FFormatter.FormatToken(TokenStr, FTokenState));
           TokenPtr := Run;
         end;
 
@@ -163,8 +180,7 @@ begin
             else
               FTokenState := tsKeyWord;
           end;
-          FormatToken(TokenStr, FTokenState);
-          WriteOut(TokenStr);
+          WriteOut(FFormatter.FormatToken(TokenStr, FTokenState));
           TokenPtr := Run;
         end;
 
@@ -270,11 +286,7 @@ begin
     end;
   end;
   FreeMem(FReadBuf);
-  WriteFooter;
-end;
-
-procedure TPasFormatter.FormatToken(var NewToken: string; TokenState: TPasTokenState);
-begin
+  FFormatter.WriteFooter(OutStream);
 end;
 
 procedure TPasFormatter.HandleAnsiC;
@@ -290,9 +302,8 @@ begin
           TokenLen := Run - TokenPtr;
           SetString(TokenStr, TokenPtr, TokenLen);
 
-          TokenStr := SetSpecial(TokenStr);
-          FormatToken(TokenStr, FTokenState);
-          WriteOut(TokenStr);
+          TokenStr := FFormatter.SetSpecial(TokenStr);
+          WriteOut(FFormatter.FormatToken(TokenStr, FTokenState));
           TokenPtr := Run;
         end;
         HandleCRLF;
@@ -310,9 +321,8 @@ begin
   FTokenState := tsComment;
   TokenLen := Run - TokenPtr;
   SetString(TokenStr, TokenPtr, TokenLen);
-  TokenStr := SetSpecial(TokenStr);
-  FormatToken(TokenStr, FTokenState);
-  WriteOut(TokenStr);
+  TokenStr := FFormatter.SetSpecial(TokenStr);
+  WriteOut(FFormatter.FormatToken(TokenStr, FTokenState));
   TokenPtr := Run;
   FComment := csNo;
 end;  { HandleAnsiC }
@@ -329,9 +339,8 @@ begin
           FTokenState := tsComment;
           TokenLen := Run - TokenPtr;
           SetString(TokenStr, TokenPtr, TokenLen);
-          TokenStr := SetSpecial(TokenStr);
-          FormatToken(TokenStr, FTokenState);
-          WriteOut(TokenStr);
+          TokenStr := FFormatter.SetSpecial(TokenStr);
+          WriteOut(FFormatter.FormatToken(TokenStr, FTokenState));
           TokenPtr := Run;
         end;
         HandleCRLF;
@@ -350,9 +359,8 @@ begin
   FTokenState := tsComment;
   TokenLen := Run - TokenPtr;
   SetString(TokenStr, TokenPtr, TokenLen);
-  TokenStr := SetSpecial(TokenStr);
-  FormatToken(TokenStr, FTokenState);
-  WriteOut(TokenStr);
+  TokenStr := FFormatter.SetSpecial(TokenStr);
+  WriteOut(FFormatter.FormatToken(TokenStr, FTokenState));
   TokenPtr := Run;
   FComment := csNo;
 end;  { HandleBorC }
@@ -365,8 +373,7 @@ begin
   FTokenState := tsCRLF;
   TokenLen := Run - TokenPtr;
   SetString(TokenStr, TokenPtr, TokenLen);
-  FormatToken(TokenStr, FTokenState);
-  WriteOut(TokenStr);
+  WriteOut(FFormatter.FormatToken(TokenStr, FTokenState));
   TokenPtr := Run;
   fComment := csNo;
   FTokenState := tsUnKnown;
@@ -381,9 +388,8 @@ begin
     Inc(Run);
   TokenLen := Run - TokenPtr;
   SetString(TokenStr, TokenPtr, TokenLen);
-  TokenStr := SetSpecial(TokenStr);
-  FormatToken(TokenStr, FTokenState);
-  WriteOut(TokenStr);
+  TokenStr := FFormatter.SetSpecial(TokenStr);
+  WriteOut(FFormatter.FormatToken(TokenStr, FTokenState));
   TokenPtr := Run;
   FComment := csNo;
 end;  { HandleSlashesC }
@@ -401,9 +407,8 @@ begin
   Inc(Run);
   TokenLen := Run - TokenPtr;
   SetString(TokenStr, TokenPtr, TokenLen);
-  TokenStr := SetSpecial(TokenStr);
-  FormatToken(TokenStr, FTokenState);
-  WriteOut(TokenStr);
+  TokenStr := FFormatter.SetSpecial(TokenStr);
+  WriteOut(FFormatter.FormatToken(TokenStr, FTokenState));
   TokenPtr := Run;
 end;  { HandleString }
 
@@ -499,20 +504,7 @@ begin
   end;
 end;  { IsKeyWord }
 
-function TPasFormatter.SetSpecial(const str: string): string;
-begin
-
-end;
-
-procedure TPasFormatter.WriteFooter;
-begin
-end;
-
-procedure TPasFormatter.WriteHeader;
-begin
-end;
-
-procedure TPasFormatter.WriteOut(const str: string);
+procedure _WriteOut(OutStream: TStream; const str: string);
 var
   b, Buf: PChar;
 begin
@@ -521,25 +513,37 @@ begin
     GetMem(Buf, Length(str) + 1);
     StrCopy(Buf, PChar(str));
     b := Buf;
-    FOutStream.Write(Buf^, Length(str));
+    OutStream.Write(Buf^, Length(str));
     FreeMem(b);
   end;
 end;
 
+procedure _WriteOutLn(OutStream: TStream; const str: string);
+begin
+  _WriteOut(OutStream, str);
+  _WriteOut(OutStream, LineEnding);
+end;
+
+procedure TPasFormatter.WriteOut(const str: string);
+begin
+  _WriteOut(FOutStream, str);
+end;
+
 procedure TPasFormatter.WriteOutLn(const str: string);
 begin
-  WriteOut(str + #13#10);
+  _WriteOutLn(FOutStream, str);
 end;
 
 
 (* Pascal to RTF converter *)
 
-procedure TPasToRTF.FormatToken(var NewToken: string; TokenState: TPasTokenState);
+function TPasToRTF.FormatToken(const NewToken: string;
+  TokenState: TPasTokenState): string;
 begin
   case TokenState of
-    tsCRLF: NewToken := '\par' + NewToken;
-    tsDirective, tsKeyWord: NewToken := '\b ' + NewToken + '\b0 ';
-    tsComment: NewToken := '\cf1\i ' + NewToken + '\cf0\i0 ';
+    tsCRLF: FormatToken := '\par' + NewToken;
+    tsDirective, tsKeyword: FormatToken := '\b ' + NewToken + '\b0 ';
+    tsComment: FormatToken := '\cf1\i ' + NewToken + '\cf0\i0 ';
   end;
 end;
 
@@ -556,30 +560,31 @@ begin
     end;
 end;
 
-procedure TPasToRTF.WriteFooter;
+procedure TPasToRTF.WriteFooter(OutStream: TStream);
 begin
-  WriteOutLn(#13#10'\par}');
+  _WriteOutLn(OutStream, #13#10'\par}');
 end;
 
-procedure TPasToRTF.WriteHeader;
+procedure TPasToRTF.WriteHeader(OutStream: TStream);
 begin
-  WriteOutLn('{\rtf1\ansi\ansicpg1253\deff0\deflang1032'#13#10);
-  WriteOutLn('{\fonttbl');
-  WriteOutLn('{\f0\fcourier Courier New Greek;}');
-  WriteOutLn('}'#13#10);
-  WriteOutLn('{\colortbl ;\red0\green0\blue128;}'#13#10);
-  WriteOutLn('\pard\plain \li120 \fs20');
+  _WriteOutLn(OutStream, '{\rtf1\ansi\ansicpg1253\deff0\deflang1032'#13#10);
+  _WriteOutLn(OutStream, '{\fonttbl');
+  _WriteOutLn(OutStream, '{\f0\fcourier Courier New Greek;}');
+  _WriteOutLn(OutStream, '}'#13#10);
+  _WriteOutLn(OutStream, '{\colortbl ;\red0\green0\blue128;}'#13#10);
+  _WriteOutLn(OutStream, '\pard\plain \li120 \fs20');
 end;
 
 (* Pascal To HTML Converter *)
 
-procedure TPasToHTML.FormatToken(var NewToken: string; TokenState: TPasTokenState);
+function TPasToHTML.FormatToken(const NewToken: string;
+  TokenState: TPasTokenState): string;
 begin
   case TokenState of
-    tsCRLF: NewToken := '<BR>' + NewToken;
-    tsSpace: NewToken := SetSpecial(NewToken);
-    tsDirective, tsKeyWord: NewToken := '<B>' + NewToken + '</B>';
-    tsComment: NewToken := '<FONT COLOR=#000080><I>' + NewToken + '</I></FONT>';
+    tsCRLF: FormatToken := '<BR>' + NewToken;
+    tsSpace: FormatToken := SetSpecial(NewToken);
+    tsDirective, tsKeyWord: FormatToken := '<B>' + NewToken + '</B>';
+    tsComment: FormatToken := '<FONT COLOR=#000080><I>' + NewToken + '</I></FONT>';
   end;
 end;
 
@@ -604,19 +609,19 @@ begin
     end;
 end;
 
-procedure TPasToHTML.WriteFooter;
+procedure TPasToHTML.WriteFooter(OutStream: TStream);
 begin
-  WriteOutLn('</TT></BODY>');
-  WriteOutLn('</HTML>');
+  _WriteOutLn(OutStream, '</TT></BODY>');
+  _WriteOutLn(OutStream, '</HTML>');
 end;
 
-procedure TPasToHTML.WriteHeader;
+procedure TPasToHTML.WriteHeader(OutStream: TStream);
 begin
-  WriteOutLn('<HTML>');
-  WriteOutLn('<HEAD>');
-  WriteOutLn('<TITLE></TITLE>');
-  WriteOutLn('</HEAD>');
-  WriteOutLn('<BODY><TT>');
+  _WriteOutLn(OutStream, '<HTML>');
+  _WriteOutLn(OutStream, '<HEAD>');
+  _WriteOutLn(OutStream, '<TITLE></TITLE>');
+  _WriteOutLn(OutStream, '</HEAD>');
+  _WriteOutLn(OutStream, '<BODY><TT>');
 end;
 
 end.

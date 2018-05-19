@@ -30,8 +30,6 @@ type
     btnFileOpen: TToolButton;
     btnFileSave: TToolButton;
     StatusBar1: TStatusBar;
-    procedure PasToRTFClick(Sender: TObject);
-    procedure PasToHTMLClick(Sender: TObject);
     procedure FileOpenClick(Sender: TObject);
     procedure FileExitClick(Sender: TObject);
     procedure ToolsPrefClick(Sender: TObject);
@@ -74,50 +72,6 @@ begin
   FileSaveAs.Enabled := FDocType <> dtNone;
 end;
 
-procedure TMainForm.PasToRTFClick(Sender: TObject);
-var
-  stream1, stream2: TFileStream;
-  fmt: TPasToRTF;
-begin
-  if OpenDialog1.Execute then
-  begin
-    SaveDialog1.DefaultExt := 'rtf';
-    SaveDialog1.Filter := 'Rich Text Format|*.rtf|All files|*.*';
-    if SaveDialog1.Execute then
-    begin
-      stream1 := TFileStream.Create(OpenDialog1.FileName, fmOpenRead);
-      stream2 := TFileStream.Create(SaveDialog1.FileName, fmCreate);
-      fmt := TPasToRTF.Create;
-      fmt.FormatStream(stream1, stream2);
-      fmt.Free;
-      stream2.Free;
-      stream1.Free;
-    end;
-  end;
-end;
-
-procedure TMainForm.PasToHTMLClick(Sender: TObject);
-var
-  stream1, stream2: TFileStream;
-  fmt: TPasToHTML;
-begin
-  if OpenDialog1.Execute then
-  begin
-    SaveDialog1.DefaultExt := 'html';
-    SaveDialog1.Filter := 'HTML Document|*.html|All files|*.*';
-    if SaveDialog1.Execute then
-    begin
-      stream1 := TFileStream.Create(OpenDialog1.FileName, fmOpenRead);
-      stream2 := TFileStream.Create(SaveDialog1.FileName, fmCreate);
-      fmt := TPasToHTML.Create;
-      fmt.FormatStream(stream1, stream2);
-      fmt.Free;
-      stream2.Free;
-      stream1.Free;
-    end;
-  end;
-end;
-
 procedure TMainForm.OpenCppFile(const FileName: string);
 var
   stream1: TFileStream;
@@ -142,12 +96,15 @@ var
   stream1: TFileStream;
   stream2: TMemoryStream;
   fmt: TPasToRTF;
+  p: TPasFormatter;
 begin
   stream1 := TFileStream.Create(FileName, fmOpenRead);
   stream2 := TMemoryStream.Create;
   fmt := TPasToRTF.Create;
-  fmt.FormatStream(stream1, stream2);
+  p := TPasFormatter.Create(fmt);
+  p.FormatStream(stream1, stream2);
   fmt.Free;
+  p.Free;
   stream1.Free;
   stream2.seek(0, 0);
   RichEdit1.Lines.LoadFromStream(stream2);
@@ -162,12 +119,14 @@ begin
     OpenFile(OpenDialog1.FileName);
 end;
 
-
 procedure TMainForm.FileExitClick(Sender: TObject);
 begin
   Close;
 end;
 
+{
+  Opens the preferences dialog (TODO)
+}
 procedure TMainForm.ToolsPrefClick(Sender: TObject);
 begin
 end;
@@ -177,14 +136,25 @@ begin
   AboutForm.ShowModal;
 end;
 
+function IsCppFileExtension(const extension: string): boolean;
+begin
+  IsCppFileExtension := (extension = '.cpp') or (extension = '.c') or (extension = '.h');
+end;
+
+function IsPascalFileExtension(const extension: string): boolean;
+begin
+  IsPascalFileExtension := (extension = '.pas') or (extension = '.dpr') or
+    (extension = '.lpr');
+end;
+
 procedure TMainForm.OpenFile(const FileName: string);
 var
   s: string;
 begin
   s := ExtractFileExt(FileName);
-  if (AnsiSameText(s, '.cpp') or AnsiSameText(s, '.c') or AnsiSameText(s, '.h')) then
+  if IsCppFileExtension(s) then
     OpenCppFile(FileName)
-  else if (AnsiSameText(s, '.pas') or AnsiSameText(s, '.dpr')) then
+  else if IsPascalFileExtension(s) then
     OpenPasFile(FileName)
   else
     MessageDlg('Αυτή η μορφή δεν υποστηρίζεται (' + s + ').', mtError, [mbOK], 0);
@@ -193,6 +163,7 @@ end;
 procedure TMainForm.FileSaveAsClick(Sender: TObject);
 var
   fmt1: TPasFormatter;
+  f: TFormatterBase;
   fmt2: TCppFormatter;
   stream1, stream2: TFileStream;
 begin
@@ -201,46 +172,54 @@ begin
     if SaveDialog1.Execute then
     begin
       stream1 := TFileStream.Create(FCurFilename, fmOpenRead);
-      stream2 := TFileStream.Create(SaveDialog1.FileName, fmCreate);
-      case FDocType of
-        dtCpp:
-          case SaveDialog1.FilterIndex of
-            1:
-            begin
-              fmt2 := TCppToRTF.Create;
-              fmt2.FormatStream(stream1, stream2);
-              fmt2.Free;
+      try
+        stream2 := TFileStream.Create(SaveDialog1.FileName, fmCreate);
+        case FDocType of
+          dtCpp:
+            case SaveDialog1.FilterIndex of
+              1:
+              begin
+                fmt2 := TCppToRTF.Create;
+                fmt2.FormatStream(stream1, stream2);
+                fmt2.Free;
+              end;
+              2:
+              begin
+                fmt2 := TCppToHTML.Create;
+                fmt2.FormatStream(stream1, stream2);
+                fmt2.Free;
+              end;
+              else
+                raise Exception.Create('Invalid CPP Converter');
             end;
-            2:
-            begin
-              fmt2 := TCppToHTML.Create;
-              fmt2.FormatStream(stream1, stream2);
-              fmt2.Free;
+          dtPascal:
+            case SaveDialog1.FilterIndex of
+              1:
+              begin
+                f := TPasToRTF.Create;
+                fmt1 := TPasFormatter.Create(f);
+                fmt1.FormatStream(stream1, stream2);
+                fmt1.Free;
+                f.Free;
+              end;
+              2:
+              begin
+                f := TPasToHTML.Create;
+                fmt1 := TPasFormatter.Create(f);
+                fmt1.FormatStream(stream1, stream2);
+                fmt1.Free;
+                f.Free;
+              end;
+              else
+                raise Exception.Create('Invalid PAS Converter');
             end;
-            else
-              raise Exception.Create('Invalid CPP Converter');
-          end;
-        dtPascal:
-          case SaveDialog1.FilterIndex of
-            1:
-            begin
-              fmt1 := TPasToRTF.Create;
-              fmt1.FormatStream(stream1, stream2);
-              fmt1.Free;
-            end;
-            2:
-            begin
-              fmt1 := TPasToHTML.Create;
-              fmt1.FormatStream(stream1, stream2);
-              fmt1.Free;
-            end;
-            else
-              raise Exception.Create('Invalid PAS Converter');
-          end;
-      end;
+        end;
 
-      stream2.Free;
-      stream1.Free;
+        stream2.Free;
+
+      finally
+        stream1.Free;
+      end;
     end;
   end;
 end;
@@ -250,6 +229,10 @@ begin
   DocType := dtNone;
 end;
 
+{
+  Changes the default extension of the save dialog based on the selected
+  filter in the drop down list.
+}
 procedure TMainForm.SaveDialog1TypeChange(Sender: TObject);
 begin
   case SaveDialog1.FilterIndex of
