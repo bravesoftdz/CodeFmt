@@ -4,40 +4,52 @@ program CodeFmt;
 
 uses
   SysUtils,
+  Classes,
   Forms,
   Interfaces,
+  Factory in 'Factory.pas',
   frmMain in 'frmMain.pas' {MainForm},
-  PasConv in 'PasConv.pas',
-  CppConv in 'CppConv.pas',
   frmAbout in 'frmAbout.pas' {AboutForm};
 
 {$R *.res}
 
-  function RightSeekPos(const substr, s: string): integer;
-  var
-    i, k: integer;
-  begin
-    k := Length(substr);
-    i := Length(s) - k + 1;
-    while (i > 0) and (Copy(s, i, k) <> substr) do
-      i := i - 1;
-    Result := i;
-  end;
+function RightSeekPos(const substr, s: string): integer;
+var
+  i, k: integer;
+begin
+  k := Length(substr);
+  i := Length(s) - k + 1;
+  while (i > 0) and (Copy(s, i, k) <> substr) do
+    i := i - 1;
+  Result := i;
+end;
 
-const  //False is HTML and True is RTF
-  sExt: array [False..True] of string = ('.html', '.rtf');
+function GetFormatterType(s: string): TFormatterType;
+var
+  toUpper: string;
+begin
+  toUpper := UpperCase(s);
+  if toUpper = 'RTF' then
+    Result := ftRtf
+  else if toUpper = 'HTML' then
+    Result := ftHtml
+  else
+    raise Exception.Create('Unsupported output format: ' + s);
+end;
+
+const
+  sExt: array [ftHtml..ftRtf] of string = ('.html', '.rtf');
 var
   sFileName: string;
   sName: string;
   sFormatted: string;
-  RTFOrHTML: boolean;
+  formatterType: TFormatterType;
   i: integer;
+  inputStream, outputStream: TFileStream;
 begin
   if (ParamCount = 2) or (ParamCount = 3) then
   begin
-    if (UpperCase(ParamStr(1)) <> 'RTF') and (UpperCase(ParamStr(1)) <> 'HTML') then
-      Exit;
-    RTFOrHTML := UpperCase(ParamStr(1)) = 'RTF';
+    formatterType := GetFormatterType(ParamStr(1));
 
     sFileName := ParamStr(2);
     i := RightSeekPos('.', sFileName);
@@ -51,13 +63,21 @@ begin
 
     sFormatted := ParamStr(3);
     if sFormatted = '' then
-      sFormatted := sName + sExt[RTFOrHTML]
+      sFormatted := sName + sExt[formatterType]
     else if RightSeekPos('.', sFormatted) = 0 then
-      sFormatted := sFormatted + sExt[RTFOrHTML];
-    if RTFOrHTML then
-      PasToRTFFile(sFileName, sFormatted)
-    else
-      PasToHTMLFile(sFileName, sFormatted);
+      sFormatted := sFormatted + sExt[formatterType];
+
+    inputStream := TFileStream.Create(sFileName, fmOpenRead);
+    try
+      outputStream := TFileStream.Create(sFormatted, fmCreate);
+      try
+        Process(formatterType, dtPascal, inputStream, outputStream);
+      finally
+        outputStream.Free;
+      end;
+    finally
+      inputStream.Free;
+    end;
   end
   else
   begin

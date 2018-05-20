@@ -6,6 +6,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
+- Brought back syntax highlighting.
+- Support for EditorConfig file format.
+- Code refactoring.
+
 ## [1.1.0] - 2018-01-25
 
 - Removed preferences form.

@@ -17,11 +17,6 @@ type
     procedure Scan; override;
   end;
 
-procedure CppToHTMLFile(const CppFile, HTMLFile: string);
-procedure CppToRTFFile(const CppFile, RTFFile: string);
-procedure CppToHTMLStream(inputStream, outputStream: TStream);
-procedure CppToRTFStream(inputStream, outputStream: TStream);
-
 implementation
 
 const
@@ -38,76 +33,6 @@ const
     'short', 'signed', 'sizeof', 'static', 'struct',
     'switch', 'template', 'this', 'typedef', 'union',
     'unsigned', 'virtual', 'void', 'volatile', 'while');
-
-procedure CppToHTMLStream(inputStream, outputStream: TStream);
-var
-  htmlFormatter: THTMLFormatter;
-  cpp: TCppFormatter;
-begin
-  htmlFormatter := THTMLFormatter.Create(outputStream);
-  try
-    cpp := TCppFormatter.Create(htmlFormatter);
-    try
-      cpp.FormatStream(inputStream);
-    finally
-      cpp.Free;
-    end;
-  finally
-    htmlFormatter.Free;
-  end;
-end;
-
-procedure CppToRTFStream(inputStream, outputStream: TStream);
-var
-  rtfFormatter: TRTFFormatter;
-  cpp: TCppFormatter;
-begin
-  rtfFormatter := TRTFFormatter.Create(outputStream);
-  try
-    cpp := TCppFormatter.Create(rtfFormatter);
-    try
-      cpp.FormatStream(inputStream);
-    finally
-      cpp.Free;
-    end;
-  finally
-    rtfFormatter.Free;
-  end;
-end;
-
-procedure CppToHTMLFile(const CppFile, HTMLFile: string);
-var
-  stream1, stream2: TFileStream;
-begin
-  stream1 := TFileStream.Create(CppFile, fmOpenRead);
-  try
-    stream2 := TFileStream.Create(HTMLFile, fmCreate);
-    try
-      CppToHTMLStream(stream1, stream2);
-    finally
-      stream2.Free;
-    end;
-  finally
-    stream1.Free;
-  end;
-end;
-
-procedure CppToRTFFile(const CppFile, RTFFile: string);
-var
-  stream1, stream2: TFileStream;
-begin
-  stream1 := TFileStream.Create(CppFile, fmOpenRead);
-  try
-    stream2 := TFileStream.Create(RTFFile, fmCreate);
-    try
-      CppToRTFStream(stream1, stream2);
-    finally
-      stream2.Free;
-    end;
-  finally
-    stream1.Free;
-  end;
-end;
 
 procedure TCppFormatter.Scan;
 begin

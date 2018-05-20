@@ -14,6 +14,7 @@ type
     FCurrent: PChar;
     FMark: PChar;
     FPosition: integer;
+    FReadBufSize: integer;
     function GetCurrent: char;
     procedure Mark;
     function Token: string;
@@ -23,6 +24,7 @@ type
     procedure Next;
     function TokenAndMark: string;
     function PeekNext: char;
+    function PeekLength(Count: integer): string;
     function IsEof: boolean;
     function IsEoln: boolean;
     function IsEmptyToken: boolean;
@@ -38,11 +40,10 @@ implementation
 constructor TParser.Create(InStream: TStream);
 var
   FReadBuf: PChar;
-  i: integer;
 begin
   GetMem(FReadBuf, InStream.Size + 1);
-  i := InStream.Read(FReadBuf^, InStream.Size);
-  FReadBuf[i] := #0;
+  FReadBufSize := InStream.Read(FReadBuf^, InStream.Size);
+  FReadBuf[FReadBufSize] := #0;
   FCurrent := FReadBuf;
   FPosition := 0;
   Mark;
@@ -120,6 +121,22 @@ begin
   end
   else
     Scan := False;
+end;
+
+function TParser.PeekLength(Count: integer): string;
+var
+  buffer: string;
+  i: integer;
+begin
+  buffer := '';
+  i := 0;
+  while (i < count) and ((FCurrent + i)^ <> #0) do
+  begin
+    buffer := buffer + (FCurrent + i)^;
+    Inc(i);
+  end;
+
+  Result := buffer;
 end;
 
 end.

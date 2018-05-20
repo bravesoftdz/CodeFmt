@@ -7,13 +7,10 @@ interface
 uses
   LCLIntf, LCLType, SysUtils, Classes, Graphics, Controls,
   Forms, Dialogs, ComCtrls, Buttons, ExtCtrls, Menus,
-  IpHtml;
+  IpHtml,
+  Factory;
 
 type
-  TDocumentType = (dtNone, dtCpp, dtPascal);
-
-  TStreamPipe = procedure(inputStream, outputStream: TStream);
-
   { TMainForm }
 
   TMainForm = class(TForm)
@@ -46,12 +43,10 @@ type
     FCurFileName: string;
     procedure SetDocType(Value: TDocumentType);
     procedure SetCurFileName(const Value: string);
-    procedure OpenFile(const FileName: string; aDocType: TDocumentType; processor: TStreamPipe); overload;
+    procedure OpenFile(const FileName: string; aDocType: TDocumentType); overload;
     property DocType: TDocumentType read FDocType write SetDocType;
     property CurFileName: string read FCurFileName write SetCurFileName;
   public
-    procedure OpenCppFile(const FileName: string);
-    procedure OpenPasFile(const FileName: string);
     procedure OpenFile(const FileName: string); overload;
   end;
 
@@ -60,10 +55,9 @@ var
 
 implementation
 
-uses PasConv, CppConv, frmAbout;
+uses frmAbout;
 
 {$R *.lfm}
-
 
 procedure TMainForm.SetCurFileName(const Value: string);
 begin
@@ -78,7 +72,7 @@ begin
   FileSaveAs.Enabled := FDocType <> dtNone;
 end;
 
-procedure TMainForm.OpenFile(const FileName: string; aDocType: TDocumentType; processor: TStreamPipe);
+procedure TMainForm.OpenFile(const FileName: string; aDocType: TDocumentType);
 var
   inputStream: TFileStream;
   outputStream: TMemoryStream;
@@ -87,7 +81,7 @@ begin
   try
     outputStream := TMemoryStream.Create;
     try
-      processor(inputStream, outputStream);
+      Process(ftHtml, aDocType, inputStream, outputStream);
       outputStream.seek(0, 0);
       IpHtmlPanel1.SetHtmlFromStream(outputStream);
       DocType := aDocType;
@@ -98,16 +92,6 @@ begin
   finally
     inputStream.Free;
   end;
-end;
-
-procedure TMainForm.OpenCppFile(const FileName: string);
-begin
-  OpenFile(FileName, dtCpp, CppToHTMLStream);
-end;
-
-procedure TMainForm.OpenPasFile(const FileName: string);
-begin
-  OpenFile(Filename, dtPascal, PasToHTMLStream);
 end;
 
 procedure TMainForm.FileOpenClick(Sender: TObject);
@@ -150,44 +134,39 @@ var
 begin
   s := ExtractFileExt(FileName);
   if IsCppFileExtension(s) then
-    OpenCppFile(FileName)
+    OpenFile(FileName, dtCpp)
   else if IsPascalFileExtension(s) then
-    OpenPasFile(FileName)
+    OpenFile(FileName, dtPascal)
+  else if ExtractFileName(FileName) = '.editorconfig' then
+    OpenFile(FileName, dtEditorConfig)
   else
     MessageDlg('Αυτή η μορφή δεν υποστηρίζεται (' + s + ').', mtError, [mbOK], 0);
 end;
 
 procedure TMainForm.FileSaveAsClick(Sender: TObject);
 var
-  fmt2: TCppFormatter;
   inputStream, outputStream: TFileStream;
+  formatterType: TFormatterType;
 begin
   if FDocType <> dtNone then
   begin
     if SaveDialog1.Execute then
     begin
+      case SaveDialog1.FilterIndex of
+        1: formatterType := ftRtf;
+        2: formatterType := ftHtml;
+        else
+          raise Exception.Create('Not implemented!');
+      end;
+
       inputStream := TFileStream.Create(FCurFilename, fmOpenRead);
       try
         outputStream := TFileStream.Create(SaveDialog1.FileName, fmCreate);
-        case FDocType of
-          dtCpp:
-            case SaveDialog1.FilterIndex of
-              1: CppToRTFStream(inputStream, outputStream);
-              2: CppToHTMLStream(inputStream, outputStream);
-              else
-                raise Exception.Create('Invalid CPP Converter');
-            end;
-          dtPascal:
-            case SaveDialog1.FilterIndex of
-              1: PasToRTFStream(inputStream, outputStream);
-              2: PasToHTMLStream(inputStream, outputStream);
-              else
-                raise Exception.Create('Invalid PAS Converter');
-            end;
+        try
+          Process(formatterType, FDocType, inputStream, outputStream);
+        finally
+          outputStream.Free;
         end;
-
-        outputStream.Free;
-
       finally
         inputStream.Free;
       end;

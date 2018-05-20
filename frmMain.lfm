@@ -62,7 +62,7 @@ object MainForm: TMainForm
     TabOrder = 2
   end
   object OpenDialog1: TOpenDialog
-    Filter = 'Κώδικας (όλες οι μορφές που υποστηρίζονται)|*.c;*.cpp;*.h;*.pas;*.dpr|Κώδικας C/C++|*.c;*.cpp;*.h|Κώδικας Pascal|*.pas;*.dpr|Όλα τα αρχεία|*.*'
+    Filter = 'Κώδικας (όλες οι μορφές που υποστηρίζονται)|*.c;*.cpp;*.h;*.pas;*.dpr;.editorconfig|Κώδικας C/C++|*.c;*.cpp;*.h|Κώδικας Pascal|*.pas;*.dpr|EditorConfig|.editorconfig|Όλα τα αρχεία|*.*'
     Options = [ofHideReadOnly, ofPathMustExist, ofFileMustExist]
     left = 264
     top = 16

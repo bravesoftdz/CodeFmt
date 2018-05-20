@@ -25,11 +25,6 @@ type
     procedure Scan; override;
   end;
 
-procedure PasToHTMLFile(const PasFile, HTMLFile: string);
-procedure PasToRTFFile(const PasFile, RTFFile: string);
-procedure PasToHTMLStream(inputStream, outputStream: TStream);
-procedure PasToRTFStream(inputStream, outputStream: TStream);
-
 implementation
 
 const
@@ -57,76 +52,6 @@ const
   PasDiffKeys: array[0..6] of string =
     ('END', 'FUNCTION', 'PRIVATE', 'PROCEDURE', 'PRODECTED',
     'PUBLIC', 'PUBLISHED');
-
-procedure PasToHTMLStream(inputStream, outputStream: TStream);
-var
-  pascalToHtmlFormatter: THTMLFormatter;
-  p: TPasFormatter;
-begin
-  pascalToHtmlFormatter := THTMLFormatter.Create(outputStream);
-  try
-    p := TPasFormatter.Create(pascalToHtmlFormatter);
-    try
-      p.FormatStream(inputStream);
-    finally
-      p.Free;
-    end;
-  finally
-    pascalToHtmlFormatter.Free;
-  end;
-end;
-
-procedure PasToRTFStream(inputStream, outputStream: TStream);
-var
-  pascalToRtfFormatter: TRTFFormatter;
-  p: TPasFormatter;
-begin
-  pascalToRtfFormatter := TRTFFormatter.Create(outputStream);
-  try
-    p := TPasFormatter.Create(pascalToRtfFormatter);
-    try
-      p.FormatStream(inputStream);
-    finally
-      p.Free;
-    end;
-  finally
-    pascalToRtfFormatter.Free;
-  end;
-end;
-
-procedure PasToHTMLFile(const PasFile, HTMLFile: string);
-var
-  inputStream, outputStream: TFileStream;
-begin
-  inputStream := TFileStream.Create(PasFile, fmOpenRead);
-  try
-    outputStream := TFileStream.Create(HTMLFile, fmCreate);
-    try
-      PasToHTMLStream(inputStream, outputStream);
-    finally
-      outputStream.Free;
-    end;
-  finally
-    inputStream.Free;
-  end;
-end;
-
-procedure PasToRTFFile(const PasFile, RTFFile: string);
-var
-  inputStream, outputStream: TFileStream;
-begin
-  inputStream := TFileStream.Create(PasFile, fmOpenRead);
-  try
-    outputStream := TFileStream.Create(RTFFile, fmCreate);
-    try
-      PasToRTFStream(inputStream, outputStream);
-    finally
-      outputStream.Free;
-    end;
-  finally
-    inputStream.Free;
-  end;
-end;
 
 procedure TPasFormatter.Scan;
 begin
