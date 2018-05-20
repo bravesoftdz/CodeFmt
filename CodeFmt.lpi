@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <CONFIG>
   <ProjectOptions>
-    <Version Value="9"/>
+    <Version Value="10"/>
     <PathDelim Value="\"/>
     <General>
       <Flags>
@@ -17,9 +17,6 @@
     <i18n>
       <EnableI18N LFM="False"/>
     </i18n>
-    <VersionInfo>
-      <StringTable ProductVersion=""/>
-    </VersionInfo>
     <BuildModes Count="1">
       <Item1 Name="Default" Default="True"/>
     </BuildModes>
@@ -36,7 +33,7 @@
         <PackageName Value="LCL"/>
       </Item1>
     </RequiredPackages>
-    <Units Count="5">
+    <Units Count="6">
       <Unit0>
         <Filename Value="CodeFmt.lpr"/>
         <IsPartOfProject Value="True"/>
@@ -61,6 +58,11 @@
         <Filename Value="PasConv.pas"/>
         <IsPartOfProject Value="True"/>
       </Unit4>
+      <Unit5>
+        <Filename Value="Parser.pas"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="Parser"/>
+      </Unit5>
     </Units>
   </ProjectOptions>
   <CompilerOptions>
