@@ -27,6 +27,8 @@ type
     function IsEoln: boolean;
     function IsEmptyToken: boolean;
     function Scan(firstChar, validChars: TSysCharSet): boolean;
+
+    { Gets the character at the current position of the reader. }
     property Current: char read GetCurrent;
     property Position: integer read FPosition;
   end;

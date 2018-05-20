@@ -8,9 +8,20 @@ uses
   Classes, SysUtils;
 
 type
-  TTokenType = (ttAssembler, ttComment, ttCRLF, ttDirective,
-    ttIdentifier, ttKeyWord, ttNumber, ttSpace,
-    ttString, ttSymbol, ttUnknown);
+  TTokenType = (
+    ttAssembler,
+    ttComment,
+    ttCRLF,
+    ttDirective,
+    ttIdentifier,
+    ttKeyWord,
+    ttNumber,
+    ttPreProcessor,
+    ttSpace,
+    ttString,
+    ttSymbol,
+    ttUnknown
+  );
 
   TFormatterBase = class
   private
@@ -140,6 +151,8 @@ begin
       FormatToken := '<FONT COLOR=#000080><I>' + escapedToken + '</I></FONT>';
     ttUnknown:
       FormatToken := '<FONT COLOR=#FF0000><B>' + escapedToken + '</B></FONT>';
+    ttPreProcessor:
+      FormatToken := '<FONT COLOR=#808080>' + escapedToken + '</FONT>';
     else
       FormatToken := escapedToken;
   end;

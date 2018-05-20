@@ -9,9 +9,8 @@ uses SysUtils, Classes, Parser, Formatters, LexerBase;
 type
   TPasFormatter = class(TLexBase)
   private
-    procedure HandleAnsiC;
+    procedure HandleAnsiComments;
     procedure HandleBorC;
-    procedure HandleSlashesC;
     procedure HandleString;
     procedure HandleIdentifier;
     procedure HandleNumber;
@@ -21,7 +20,7 @@ type
     procedure HandleHexNumber;
     function IsDiffKey(aToken: string): boolean;
     function IsDirective(aToken: string): boolean;
-    function IsKeyWord(aToken: string): boolean;
+    function IsKeyword(aToken: string): boolean;
   protected
     procedure Scan; override;
   end;
@@ -133,6 +132,8 @@ procedure TPasFormatter.Scan;
 begin
   HandleCRLF(Parser, Formatter);
   HandleSpace(Parser, Formatter);
+  HandleSlashesComment(Parser, Formatter);
+  HandleAnsiComments;
   HandleIdentifier;
   HandleNumber;
   HandleBorC;
@@ -145,7 +146,7 @@ end;
 (*
   Handles Ansi style comments, i.e. with parenthesis and stars.
 *)
-procedure TPasFormatter.HandleAnsiC;
+procedure TPasFormatter.HandleAnsiComments;
 
   function IsEndOfAnsiComment: boolean;
   begin
@@ -153,26 +154,25 @@ procedure TPasFormatter.HandleAnsiC;
   end;
 
 begin
-  (* Make sure we are where we think we are *)
-  if Parser.Current <> '(' then
-    raise Exception.Create('Invalid state: expected current position to be (');
-
-  Parser.Next;
-  if Parser.Current <> '*' then
-    raise Exception.Create('Invalid state: expected current position to be *');
-
-  while (not Parser.IsEof) and (not IsEndOfAnsiComment) do
-    HandleMultilineComment;
-
-  if not Parser.IsEof then
+  if (Parser.Current = '(') and (Parser.PeekNext = '*') then
   begin
-    { read the closing *) part of the comment }
+    { read the '(' and the '*' }
     Parser.Next;
     Parser.Next;
-  end;
 
-  WriteOut(ttComment);
-end;  { HandleAnsiC }
+    while (not Parser.IsEof) and (not IsEndOfAnsiComment) do
+      HandleMultilineComment;
+
+    if not Parser.IsEof then
+    begin
+      { read the closing *) part of the comment }
+      Parser.Next;
+      Parser.Next;
+    end;
+
+    WriteOut(ttComment);
+  end;
+end;
 
 procedure TPasFormatter.HandleMultilineComment;
 begin
@@ -210,15 +210,7 @@ begin
 
     WriteOut(ttComment);
   end;
-end;  { HandleBorC }
-
-procedure TPasFormatter.HandleSlashesC;
-begin
-  while (not Parser.IsEof) and (not Parser.IsEoln) do
-    Parser.Next;
-
-  WriteOut(ttComment);
-end;  { HandleSlashesC }
+end;
 
 procedure TPasFormatter.HandleString;
 begin
@@ -315,12 +307,12 @@ begin
     else
       Last := I - 1;
   end;
-end;  { IsDirective }
+end;
 
-function TPasFormatter.IsKeyWord(aToken: string): boolean;
+function TPasFormatter.IsKeyword(aToken: string): boolean;
 begin
   Result := BinarySearch(PasKeywords, aToken);
-end;  { IsKeyWord }
+end;
 
 procedure TPasFormatter.HandleIdentifier;
 var
@@ -332,7 +324,7 @@ begin
   begin
     tokenString := Parser.TokenAndMark;
 
-    if IsKeyWord(tokenString) then
+    if IsKeyword(tokenString) then
     begin
       if IsDirective(tokenString) then
         tokenType := ttDirective
@@ -354,11 +346,7 @@ end;
 
 procedure TPasFormatter.HandleSymbol;
 begin
-  if (Parser.Current = '/') and (Parser.PeekNext = '/') then
-    HandleSlashesC
-  else if (Parser.Current = '(') and (Parser.PeekNext = '*') then
-    HandleAnsiC
-  else if (Parser.Current in ['!', '"', '%', '&', '('..'/', ':'..'@',
+  if (Parser.Current in ['!', '"', '%', '&', '('..'/', ':'..'@',
     '['..'^', '`', '~']) then
   begin
     Parser.Next;

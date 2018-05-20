@@ -25,6 +25,7 @@ type
 
 procedure HandleCRLF(Parser: TParser; Formatter: TFormatterBase);
 procedure HandleSpace(Parser: TParser; Formatter: TFormatterBase);
+procedure HandleSlashesComment(Parser: TParser; Formatter: TFormatterBase);
 
 implementation
 
@@ -89,12 +90,23 @@ begin
     Parser.Next;
     Formatter.WriteToken(Parser.TokenAndMark, ttCRLF);
   end;
-end;  { HandleCRLF }
+end;
 
 procedure HandleSpace(Parser: TParser; Formatter: TFormatterBase);
 begin
   if Parser.Scan([#1..#9, #11, #12, #14..#32], [#1..#9, #11, #12, #14..#32]) then
     Formatter.WriteToken(Parser.TokenAndMark, ttSpace);
+end;
+
+procedure HandleSlashesComment(Parser: TParser; Formatter: TFormatterBase);
+begin
+  if (Parser.Current = '/') and (Parser.PeekNext = '/') then
+  begin
+    while (not Parser.IsEof) and (not Parser.IsEoln) do
+      Parser.Next;
+
+    Formatter.WriteToken(Parser.TokenAndMark, ttComment);
+  end;
 end;
 
 end.

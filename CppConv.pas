@@ -11,6 +11,8 @@ type
   private
     procedure HandleString;
     procedure HandleIdentifier;
+    procedure HandlePreProcessorDirective;
+    procedure HandleSymbol;
   protected
     procedure Scan; override;
   end;
@@ -111,8 +113,11 @@ procedure TCppFormatter.Scan;
 begin
   HandleCRLF(Parser, Formatter);
   HandleSpace(Parser, Formatter);
+  HandleSlashesComment(Parser, Formatter);
   HandleString;
   HandleIdentifier;
+  HandlePreProcessorDirective;
+  HandleSymbol;
 end;
 
 procedure TCppFormatter.HandleString;
@@ -157,6 +162,26 @@ begin
       tokenType := ttIdentifier;
 
     WriteOut(tokenType, token);
+  end;
+end;
+
+procedure TCppFormatter.HandlePreProcessorDirective;
+begin
+  if Parser.Current = '#' then
+  begin
+    while (not Parser.IsEof) and (not Parser.IsEoln) do
+      Parser.Next;
+
+    WriteOut(ttPreProcessor);
+  end;
+end;
+
+procedure TCppFormatter.HandleSymbol;
+begin
+  if Parser.Current in ['(', ')', ';', '{', '}', '[', ']'] then
+  begin
+    Parser.Next;
+    WriteOut(ttSymbol);
   end;
 end;
 
