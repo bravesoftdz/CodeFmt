@@ -93,24 +93,24 @@ end;
 
 procedure TMainForm.OpenPasFile(const FileName: string);
 var
-  stream1: TFileStream;
-  stream2: TMemoryStream;
-  fmt: TPasToRTF;
-  p: TPasFormatter;
+  inputStream: TFileStream;
+  outputStream: TMemoryStream;
 begin
-  stream1 := TFileStream.Create(FileName, fmOpenRead);
-  stream2 := TMemoryStream.Create;
-  fmt := TPasToRTF.Create;
-  p := TPasFormatter.Create(fmt);
-  p.FormatStream(stream1, stream2);
-  fmt.Free;
-  p.Free;
-  stream1.Free;
-  stream2.seek(0, 0);
-  RichEdit1.Lines.LoadFromStream(stream2);
-  stream2.Free;
-  DocType := dtPascal;
-  CurFileName := FileName;
+  inputStream := TFileStream.Create(FileName, fmOpenRead);
+  try
+    outputStream := TMemoryStream.Create;
+    try
+      PasToRTFStream(inputStream, outputStream);
+      outputStream.seek(0, 0);
+      RichEdit1.Lines.LoadFromStream(outputStream);
+      DocType := dtPascal;
+      CurFileName := FileName;
+    finally
+      outputStream.Free;
+    end;
+  finally
+    inputStream.Free;
+  end;
 end;
 
 procedure TMainForm.FileOpenClick(Sender: TObject);
@@ -162,31 +162,29 @@ end;
 
 procedure TMainForm.FileSaveAsClick(Sender: TObject);
 var
-  fmt1: TPasFormatter;
-  f: TFormatterBase;
   fmt2: TCppFormatter;
-  stream1, stream2: TFileStream;
+  inputStream, outputStream: TFileStream;
 begin
   if FDocType <> dtNone then
   begin
     if SaveDialog1.Execute then
     begin
-      stream1 := TFileStream.Create(FCurFilename, fmOpenRead);
+      inputStream := TFileStream.Create(FCurFilename, fmOpenRead);
       try
-        stream2 := TFileStream.Create(SaveDialog1.FileName, fmCreate);
+        outputStream := TFileStream.Create(SaveDialog1.FileName, fmCreate);
         case FDocType of
           dtCpp:
             case SaveDialog1.FilterIndex of
               1:
               begin
                 fmt2 := TCppToRTF.Create;
-                fmt2.FormatStream(stream1, stream2);
+                fmt2.FormatStream(inputStream, outputStream);
                 fmt2.Free;
               end;
               2:
               begin
                 fmt2 := TCppToHTML.Create;
-                fmt2.FormatStream(stream1, stream2);
+                fmt2.FormatStream(inputStream, outputStream);
                 fmt2.Free;
               end;
               else
@@ -194,31 +192,17 @@ begin
             end;
           dtPascal:
             case SaveDialog1.FilterIndex of
-              1:
-              begin
-                f := TPasToRTF.Create;
-                fmt1 := TPasFormatter.Create(f);
-                fmt1.FormatStream(stream1, stream2);
-                fmt1.Free;
-                f.Free;
-              end;
-              2:
-              begin
-                f := TPasToHTML.Create;
-                fmt1 := TPasFormatter.Create(f);
-                fmt1.FormatStream(stream1, stream2);
-                fmt1.Free;
-                f.Free;
-              end;
+              1: PasToRTFStream(inputStream, outputStream);
+              2: PasToHTMLStream(inputStream, outputStream);
               else
                 raise Exception.Create('Invalid PAS Converter');
             end;
         end;
 
-        stream2.Free;
+        outputStream.Free;
 
       finally
-        stream1.Free;
+        inputStream.Free;
       end;
     end;
   end;

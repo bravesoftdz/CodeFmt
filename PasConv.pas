@@ -4,25 +4,13 @@ unit PasConv;
 
 interface
 
-uses SysUtils, Classes, Parser;
+uses SysUtils, Classes, Parser, Formatters;
 
 type
-  TPasTokenState = (tsAssembler, tsComment, tsCRLF, tsDirective,
-    tsIdentifier, tsKeyWord, tsNumber, tsSpace,
-    tsString, tsSymbol, tsUnknown);
-
-  TFormatterBase = class
-    function FormatToken(const NewToken: string; TokenState: TPasTokenState): string;
-      virtual; abstract;
-    procedure WriteFooter(OutStream: TStream); virtual; abstract;
-    procedure WriteHeader(OutStream: TStream); virtual; abstract;
-  end;
-
   TPasFormatter = class
   private
     FFormatter: TFormatterBase;
     FDiffer: boolean;
-    FOutStream: TStream;
     FParser: TParser;
     procedure HandleAnsiC;
     procedure HandleBorC;
@@ -39,31 +27,11 @@ type
     function IsDiffKey(aToken: string): boolean;
     function IsDirective(aToken: string): boolean;
     function IsKeyWord(aToken: string): boolean;
-    procedure WriteOut(tokenState: TPasTokenState; const str: string); overload;
-    procedure WriteOut(tokenState: TPasTokenState); overload;
+    procedure WriteOut(tokenType: TTokenType; const str: string); overload;
+    procedure WriteOut(tokenType: TTokenType); overload;
   public
     constructor Create(Formatter: TFormatterBase);
-    procedure FormatStream(InStream, OutStream: TStream);
-  end;
-
-  TPasToRTF = class(TFormatterBase)
-  private
-    function SetSpecial(const str: string): string;
-  public
-    function FormatToken(const NewToken: string; TokenState: TPasTokenState): string;
-      override;
-    procedure WriteFooter(OutStream: TStream); override;
-    procedure WriteHeader(OutStream: TStream); override;
-  end;
-
-  TPasToHTML = class(TFormatterBase)
-  private
-    function SetSpecial(const str: string): string;
-  public
-    function FormatToken(const NewToken: string; TokenState: TPasTokenState): string;
-      override;
-    procedure WriteFooter(OutStream: TStream); override;
-    procedure WriteHeader(OutStream: TStream); override;
+    procedure FormatStream(InStream: TStream);
   end;
 
 const
@@ -94,41 +62,79 @@ const
 
 procedure PasToHTMLFile(const PasFile, HTMLFile: string);
 procedure PasToRTFFile(const PasFile, RTFFile: string);
+procedure PasToHTMLStream(inputStream, outputStream: TStream);
+procedure PasToRTFStream(inputStream, outputStream: TStream);
 
 implementation
 
+procedure PasToHTMLStream(inputStream, outputStream: TStream);
+var
+  pascalToHtmlFormatter: TPasToHTML;
+  p: TPasFormatter;
+begin
+  pascalToHtmlFormatter := TPasToHTML.Create(outputStream);
+  try
+    p := TPasFormatter.Create(pascalToHtmlFormatter);
+    try
+      p.FormatStream(inputStream);
+    finally
+      p.Free;
+    end;
+  finally
+    pascalToHtmlFormatter.Free;
+  end;
+end;
+
+procedure PasToRTFStream(inputStream, outputStream: TStream);
+var
+  pascalToRtfFormatter: TPasToRTF;
+  p: TPasFormatter;
+begin
+  pascalToRtfFormatter := TPasToRTF.Create(outputStream);
+  try
+    p := TPasFormatter.Create(pascalToRtfFormatter);
+    try
+      p.FormatStream(inputStream);
+    finally
+      p.Free;
+    end;
+  finally
+    pascalToRtfFormatter.Free;
+  end;
+end;
+
 procedure PasToHTMLFile(const PasFile, HTMLFile: string);
 var
-  fmt: TPasToHTML;
-  p: TPasFormatter;
-  stream1, stream2: TFileStream;
+  inputStream, outputStream: TFileStream;
 begin
-  stream1 := TFileStream.Create(PasFile, fmOpenRead);
-  stream2 := TFileStream.Create(HTMLFile, fmCreate);
-  fmt := TPasToHTML.Create;
-  p := TPasFormatter.Create(fmt);
-  p.FormatStream(stream1, stream2);
-  fmt.Free;
-  stream1.Free;
-  stream2.Free;
-  p.Free;
+  inputStream := TFileStream.Create(PasFile, fmOpenRead);
+  try
+    outputStream := TFileStream.Create(HTMLFile, fmCreate);
+    try
+      PasToHTMLStream(inputStream, outputStream);
+    finally
+      outputStream.Free;
+    end;
+  finally
+    inputStream.Free;
+  end;
 end;
 
 procedure PasToRTFFile(const PasFile, RTFFile: string);
 var
-  fmt: TPasToRTF;
-  stream1, stream2: TFileStream;
-  p: TPasFormatter;
+  inputStream, outputStream: TFileStream;
 begin
-  stream1 := TFileStream.Create(PasFile, fmOpenRead);
-  stream2 := TFileStream.Create(RTFFile, fmCreate);
-  fmt := TPasToRTF.Create;
-  p := TPasFormatter.Create(fmt);
-  p.FormatStream(stream1, stream2);
-  fmt.Free;
-  stream1.Free;
-  stream2.Free;
-  p.Free;
+  inputStream := TFileStream.Create(PasFile, fmOpenRead);
+  try
+    outputStream := TFileStream.Create(RTFFile, fmCreate);
+    try
+      PasToRTFStream(inputStream, outputStream);
+    finally
+      outputStream.Free;
+    end;
+  finally
+    inputStream.Free;
+  end;
 end;
 
 constructor TPasFormatter.Create(Formatter: TFormatterBase);
@@ -136,15 +142,14 @@ begin
   FFormatter := Formatter;
 end;
 
-procedure TPasFormatter.FormatStream(InStream, OutStream: TStream);
+procedure TPasFormatter.FormatStream(InStream: TStream);
 var
   oldPosition: integer;
 begin
   FParser := TParser.Create(InStream);
 
   try
-    FOutStream := OutStream;
-    FFormatter.WriteHeader(OutStream);
+    FFormatter.WriteHeader;
 
     while not FParser.IsEof do
     begin
@@ -164,12 +169,12 @@ begin
       begin
         (* unexpected token, read one char and print it out immediately *)
         FParser.Next;
-        WriteOut(tsUnknown);
+        WriteOut(ttUnknown);
       end;
 
     end;
 
-    FFormatter.WriteFooter(OutStream);
+    FFormatter.WriteFooter;
   finally
     FParser.Free;
   end;
@@ -204,7 +209,7 @@ begin
     FParser.Next;
   end;
 
-  WriteOut(tsComment);
+  WriteOut(ttComment);
 end;  { HandleAnsiC }
 
 procedure TPasFormatter.HandleMultilineComment;
@@ -214,7 +219,7 @@ begin
     { print accumulated comment so far }
     if not FParser.IsEmptyToken then
     begin
-      WriteOut(tsComment);
+      WriteOut(ttComment);
     end;
 
     { print CRLF }
@@ -241,7 +246,7 @@ begin
     if not FParser.IsEof then
       FParser.Next;
 
-    WriteOut(tsComment);
+    WriteOut(ttComment);
   end;
 end;  { HandleBorC }
 
@@ -251,12 +256,12 @@ begin
   begin
     FParser.Next;
     FParser.Next;
-    WriteOut(tsCRLF);
+    WriteOut(ttCRLF);
   end
   else if (FParser.Current in [#13, #10]) then
   begin
     FParser.Next;
-    WriteOut(tsCRLF);
+    WriteOut(ttCRLF);
   end;
 end;  { HandleCRLF }
 
@@ -265,7 +270,7 @@ begin
   while (not FParser.IsEof) and (not FParser.IsEoln) do
     FParser.Next;
 
-  WriteOut(tsComment);
+  WriteOut(ttComment);
 end;  { HandleSlashesC }
 
 procedure TPasFormatter.HandleString;
@@ -277,20 +282,20 @@ begin
       FParser.Next;
 
     FParser.Next;
-    WriteOut(tsString);
+    WriteOut(ttString);
   end;
 end;  { HandleString }
 
 procedure TPasFormatter.HandleChar;
 begin
   if FParser.Scan(['#'], ['0'..'9']) then
-    WriteOut(tsString);
+    WriteOut(ttString);
 end;
 
 procedure TPasFormatter.HandleHexNumber;
 begin
   if FParser.Scan(['$'], ['0'..'9', 'A'..'F', 'a'..'f']) then
-    WriteOut(tsNumber);
+    WriteOut(ttNumber);
 end;
 
 function TPasFormatter.IsDiffKey(aToken: string): boolean;
@@ -388,7 +393,7 @@ end;  { IsKeyWord }
 procedure TPasFormatter.HandleIdentifier;
 var
   tokenString: string;
-  tokenState: TPasTokenState;
+  tokenType: TTokenType;
 begin
   (* cannot start with number but it can contain one *)
   if FParser.Scan(['A'..'Z', 'a'..'z', '_'], ['A'..'Z', 'a'..'z', '0'..'9', '_']) then
@@ -398,27 +403,27 @@ begin
     if IsKeyWord(tokenString) then
     begin
       if IsDirective(tokenString) then
-        tokenState := tsDirective
+        tokenType := ttDirective
       else
-        tokenState := tsKeyWord;
+        tokenType := ttKeyWord;
     end
     else
-      tokenState := tsIdentifier;
+      tokenType := ttIdentifier;
 
-    WriteOut(tokenState, tokenString);
+    WriteOut(tokenType, tokenString);
   end;
 end;
 
 procedure TPasFormatter.HandleSpace;
 begin
   if FParser.Scan([#1..#9, #11, #12, #14..#32], [#1..#9, #11, #12, #14..#32]) then
-    WriteOut(tsSpace);
+    WriteOut(ttSpace);
 end;
 
 procedure TPasFormatter.HandleNumber;
 begin
   if FParser.Scan(['0'..'9'], ['0'..'9', '.', 'e', 'E']) then
-    WriteOut(tsNumber);
+    WriteOut(ttNumber);
 end;
 
 procedure TPasFormatter.HandleSymbol;
@@ -431,148 +436,19 @@ begin
     '['..'^', '`', '~']) then
   begin
     FParser.Next;
-    WriteOut(tsSymbol);
+    WriteOut(ttSymbol);
   end;
 end;
 
-procedure _WriteOut(OutStream: TStream; const str: string);
-var
-  b, Buf: PChar;
+
+procedure TPasFormatter.WriteOut(tokenType: TTokenType; const str: string);
 begin
-  if Length(str) > 0 then
-  begin
-    GetMem(Buf, Length(str) + 1);
-    StrCopy(Buf, PChar(str));
-    b := Buf;
-    OutStream.Write(Buf^, Length(str));
-    FreeMem(b);
-  end;
+  FFormatter.WriteToken(str, tokenType);
 end;
 
-procedure _WriteOutLn(OutStream: TStream; const str: string);
+procedure TPasFormatter.WriteOut(tokenType: TTokenType);
 begin
-  _WriteOut(OutStream, str);
-  _WriteOut(OutStream, LineEnding);
-end;
-
-procedure TPasFormatter.WriteOut(tokenState: TPasTokenState; const str: string);
-begin
-  _WriteOut(FOutStream, FFormatter.FormatToken(str, tokenState));
-end;
-
-procedure TPasFormatter.WriteOut(tokenState: TPasTokenstate);
-begin
-  WriteOut(tokenState, FParser.TokenAndMark);
-end;
-
-(* Pascal to RTF converter *)
-
-function TPasToRTF.FormatToken(const NewToken: string;
-  TokenState: TPasTokenState): string;
-var
-  escapedToken: string;
-begin
-  escapedToken := SetSpecial(NewToken);
-  case TokenState of
-    tsCRLF:
-      FormatToken := '\par' + escapedToken;
-    tsDirective, tsKeyword:
-      FormatToken := '\b ' + escapedToken + '\b0 ';
-    tsComment:
-      FormatToken := '\cf1\i ' + escapedToken + '\cf0\i0 ';
-    else
-      FormatToken := escapedToken;
-  end;
-end;
-
-function TPasToRTF.SetSpecial(const str: string): string;
-var
-  i: integer;
-begin
-  Result := '';
-  for i := 1 to Length(str) do
-    case str[i] of
-      '\', '{', '}': Result := Result + '\' + str[i];
-      else
-        Result := Result + str[i];
-    end;
-end;
-
-procedure TPasToRTF.WriteFooter(OutStream: TStream);
-begin
-  _WriteOutLn(OutStream, '');
-  _WriteOutLn(OutStream, '\par}');
-end;
-
-procedure TPasToRTF.WriteHeader(OutStream: TStream);
-begin
-  _WriteOutLn(OutStream, '{\rtf1\ansi\ansicpg1253\deff0\deflang1032');
-  _WriteOutLn(OutStream, '');
-  _WriteOutLn(OutStream, '{\fonttbl');
-  _WriteOutLn(OutStream, '{\f0\fcourier Courier New Greek;}');
-  _WriteOutLn(OutStream, '}');
-  _WriteOutLn(OutStream, '');
-  _WriteOutLn(OutStream, '{\colortbl ;\red0\green0\blue128;}');
-  _WriteOutLn(OutStream, '');
-  _WriteOutLn(OutStream, '\pard\plain \li120 \fs20');
-end;
-
-(* Pascal To HTML Converter *)
-
-function TPasToHTML.FormatToken(const NewToken: string;
-  TokenState: TPasTokenState): string;
-var
-  escapedToken: string;
-begin
-  escapedToken := SetSpecial(NewToken);
-  case TokenState of
-    tsCRLF:
-      FormatToken := '<BR>' + escapedToken;
-    tsDirective, tsKeyWord:
-      FormatToken := '<B>' + escapedToken + '</B>';
-    tsComment:
-      FormatToken := '<FONT COLOR=#000080><I>' + escapedToken + '</I></FONT>';
-    tsUnknown:
-      FormatToken := '<FONT COLOR=#FF0000><B>' + escapedToken + '</B></FONT>';
-    else
-      FormatToken := escapedToken;
-  end;
-end;
-
-function TPasToHTML.SetSpecial(const str: string): string;
-var
-  i: integer;
-begin
-  Result := '';
-  for i := 1 to Length(str) do
-    case str[i] of
-      '<': Result := Result + '&lt;';
-      '>': Result := Result + '&gt;';
-      '&': Result := Result + '&amp;';
-      '"': Result := Result + '&quot;';
-      ' ':
-        if (i < Length(str)) and (str[i + 1] = ' ') then
-          Result := Result + '&nbsp;'
-        else
-          Result := Result + ' ';
-      else
-        Result := Result + str[i];
-    end;
-end;
-
-procedure TPasToHTML.WriteFooter(OutStream: TStream);
-begin
-  _WriteOutLn(OutStream, '</TT></BODY>');
-  _WriteOutLn(OutStream, '</HTML>');
-end;
-
-procedure TPasToHTML.WriteHeader(OutStream: TStream);
-begin
-  _WriteOutLn(OutStream, '<HTML>');
-  _WriteOutLn(OutStream, '<HEAD>');
-  _WriteOutLn(OutStream, '<TITLE></TITLE>');
-  _WriteOutLn(OutStream, '</HEAD>');
-  _WriteOutLn(OutStream, '<BODY><TT>');
+  WriteOut(tokenType, FParser.TokenAndMark);
 end;
 
 end.
