@@ -4,21 +4,16 @@ unit PasConv;
 
 interface
 
-uses SysUtils, Classes, Parser, Formatters;
+uses SysUtils, Classes, Parser, Formatters, LexerBase;
 
 type
-  TPasFormatter = class
+  TPasFormatter = class(TLexBase)
   private
-    FFormatter: TFormatterBase;
-    FDiffer: boolean;
-    FParser: TParser;
     procedure HandleAnsiC;
     procedure HandleBorC;
-    procedure HandleCRLF;
     procedure HandleSlashesC;
     procedure HandleString;
     procedure HandleIdentifier;
-    procedure HandleSpace;
     procedure HandleNumber;
     procedure HandleSymbol;
     procedure HandleMultilineComment;
@@ -27,12 +22,16 @@ type
     function IsDiffKey(aToken: string): boolean;
     function IsDirective(aToken: string): boolean;
     function IsKeyWord(aToken: string): boolean;
-    procedure WriteOut(tokenType: TTokenType; const str: string); overload;
-    procedure WriteOut(tokenType: TTokenType); overload;
-  public
-    constructor Create(Formatter: TFormatterBase);
-    procedure FormatStream(InStream: TStream);
+  protected
+    procedure Scan; override;
   end;
+
+procedure PasToHTMLFile(const PasFile, HTMLFile: string);
+procedure PasToRTFFile(const PasFile, RTFFile: string);
+procedure PasToHTMLStream(inputStream, outputStream: TStream);
+procedure PasToRTFStream(inputStream, outputStream: TStream);
+
+implementation
 
 const
   PasKeywords: array[0..98] of string =
@@ -60,19 +59,12 @@ const
     ('END', 'FUNCTION', 'PRIVATE', 'PROCEDURE', 'PRODECTED',
     'PUBLIC', 'PUBLISHED');
 
-procedure PasToHTMLFile(const PasFile, HTMLFile: string);
-procedure PasToRTFFile(const PasFile, RTFFile: string);
-procedure PasToHTMLStream(inputStream, outputStream: TStream);
-procedure PasToRTFStream(inputStream, outputStream: TStream);
-
-implementation
-
 procedure PasToHTMLStream(inputStream, outputStream: TStream);
 var
-  pascalToHtmlFormatter: TPasToHTML;
+  pascalToHtmlFormatter: THTMLFormatter;
   p: TPasFormatter;
 begin
-  pascalToHtmlFormatter := TPasToHTML.Create(outputStream);
+  pascalToHtmlFormatter := THTMLFormatter.Create(outputStream);
   try
     p := TPasFormatter.Create(pascalToHtmlFormatter);
     try
@@ -87,10 +79,10 @@ end;
 
 procedure PasToRTFStream(inputStream, outputStream: TStream);
 var
-  pascalToRtfFormatter: TPasToRTF;
+  pascalToRtfFormatter: TRTFFormatter;
   p: TPasFormatter;
 begin
-  pascalToRtfFormatter := TPasToRTF.Create(outputStream);
+  pascalToRtfFormatter := TRTFFormatter.Create(outputStream);
   try
     p := TPasFormatter.Create(pascalToRtfFormatter);
     try
@@ -137,47 +129,17 @@ begin
   end;
 end;
 
-constructor TPasFormatter.Create(Formatter: TFormatterBase);
+procedure TPasFormatter.Scan;
 begin
-  FFormatter := Formatter;
-end;
-
-procedure TPasFormatter.FormatStream(InStream: TStream);
-var
-  oldPosition: integer;
-begin
-  FParser := TParser.Create(InStream);
-
-  try
-    FFormatter.WriteHeader;
-
-    while not FParser.IsEof do
-    begin
-      oldPosition := FParser.Position;
-
-      HandleCRLF;
-      HandleSpace;
-      HandleIdentifier;
-      HandleNumber;
-      HandleBorC;
-      HandleSymbol;
-      HandleString;
-      HandleChar;
-      HandleHexNumber;
-
-      if oldPosition = FParser.Position then
-      begin
-        (* unexpected token, read one char and print it out immediately *)
-        FParser.Next;
-        WriteOut(ttUnknown);
-      end;
-
-    end;
-
-    FFormatter.WriteFooter;
-  finally
-    FParser.Free;
-  end;
+  HandleCRLF(Parser, Formatter);
+  HandleSpace(Parser, Formatter);
+  HandleIdentifier;
+  HandleNumber;
+  HandleBorC;
+  HandleSymbol;
+  HandleString;
+  HandleChar;
+  HandleHexNumber;
 end;
 
 (*
@@ -187,26 +149,26 @@ procedure TPasFormatter.HandleAnsiC;
 
   function IsEndOfAnsiComment: boolean;
   begin
-    IsEndOfAnsiComment := (FParser.Current = '*') and (FParser.PeekNext = ')');
+    IsEndOfAnsiComment := (Parser.Current = '*') and (Parser.PeekNext = ')');
   end;
 
 begin
   (* Make sure we are where we think we are *)
-  if FParser.Current <> '(' then
+  if Parser.Current <> '(' then
     raise Exception.Create('Invalid state: expected current position to be (');
 
-  FParser.Next;
-  if FParser.Current <> '*' then
+  Parser.Next;
+  if Parser.Current <> '*' then
     raise Exception.Create('Invalid state: expected current position to be *');
 
-  while (not FParser.IsEof) and (not IsEndOfAnsiComment) do
+  while (not Parser.IsEof) and (not IsEndOfAnsiComment) do
     HandleMultilineComment;
 
-  if not FParser.IsEof then
+  if not Parser.IsEof then
   begin
     { read the closing *) part of the comment }
-    FParser.Next;
-    FParser.Next;
+    Parser.Next;
+    Parser.Next;
   end;
 
   WriteOut(ttComment);
@@ -214,21 +176,21 @@ end;  { HandleAnsiC }
 
 procedure TPasFormatter.HandleMultilineComment;
 begin
-  if FParser.IsEoln then
+  if Parser.IsEoln then
   begin
     { print accumulated comment so far }
-    if not FParser.IsEmptyToken then
+    if not Parser.IsEmptyToken then
     begin
       WriteOut(ttComment);
     end;
 
     { print CRLF }
-    HandleCRLF;
+    HandleCRLF(Parser, Formatter);
   end
   else
   begin
     { carry on }
-    FParser.Next;
+    Parser.Next;
   end;
 end;
 
@@ -237,80 +199,65 @@ end;
 }
 procedure TPasFormatter.HandleBorC;
 begin
-  if FParser.Current = '{' then
+  if Parser.Current = '{' then
   begin
-    while (not FParser.IsEof) and (FParser.Current <> '}') do
+    while (not Parser.IsEof) and (Parser.Current <> '}') do
       HandleMultilineComment;
 
     (* read the closing } part of the comment *)
-    if not FParser.IsEof then
-      FParser.Next;
+    if not Parser.IsEof then
+      Parser.Next;
 
     WriteOut(ttComment);
   end;
 end;  { HandleBorC }
 
-procedure TPasFormatter.HandleCRLF;
-begin
-  if (FParser.Current = #13) and (FParser.PeekNext = #10) then
-  begin
-    FParser.Next;
-    FParser.Next;
-    WriteOut(ttCRLF);
-  end
-  else if (FParser.Current in [#13, #10]) then
-  begin
-    FParser.Next;
-    WriteOut(ttCRLF);
-  end;
-end;  { HandleCRLF }
-
 procedure TPasFormatter.HandleSlashesC;
 begin
-  while (not FParser.IsEof) and (not FParser.IsEoln) do
-    FParser.Next;
+  while (not Parser.IsEof) and (not Parser.IsEoln) do
+    Parser.Next;
 
   WriteOut(ttComment);
 end;  { HandleSlashesC }
 
 procedure TPasFormatter.HandleString;
 begin
-  if FParser.Current = #39 then
+  if Parser.Current = #39 then
   begin
-    FParser.Next;
-    while (not FParser.IsEof) and (FParser.Current <> #39) do
-      FParser.Next;
+    Parser.Next;
+    while (not Parser.IsEof) and (Parser.Current <> #39) do
+      Parser.Next;
 
-    FParser.Next;
+    Parser.Next;
     WriteOut(ttString);
   end;
 end;  { HandleString }
 
 procedure TPasFormatter.HandleChar;
 begin
-  if FParser.Scan(['#'], ['0'..'9']) then
+  if Parser.Scan(['#'], ['0'..'9']) then
     WriteOut(ttString);
 end;
 
 procedure TPasFormatter.HandleHexNumber;
 begin
-  if FParser.Scan(['$'], ['0'..'9', 'A'..'F', 'a'..'f']) then
+  if Parser.Scan(['$'], ['0'..'9', 'A'..'F', 'a'..'f']) then
     WriteOut(ttNumber);
 end;
 
-function TPasFormatter.IsDiffKey(aToken: string): boolean;
+function BinarySearch(hay: array of string; needle: string): boolean;
 var
   First, Last, I, Compare: integer;
   Token: string;
 begin
-  First := Low(PasDiffKeys);
-  Last := High(PasDiffKeys);
+  First := Low(hay);
+  Last := High(hay);
   Result := False;
-  Token := UpperCase(aToken);
+  Token := UpperCase(needle);
   while First <= Last do
   begin
     I := (First + Last) shr 1;
-    Compare := CompareStr(PasDiffKeys[i], Token);
+    Compare := CompareStr(hay[i], Token);
     if Compare = 0 then
     begin
       Result := True;
@@ -322,12 +269,18 @@ begin
     else
       Last := I - 1;
   end;
+end;
+
+function TPasFormatter.IsDiffKey(aToken: string): boolean;
+begin
+  Result := BinarySearch(PasDiffKeys, aToken);
 end;  { IsDiffKey }
 
 function TPasFormatter.IsDirective(aToken: string): boolean;
 var
   First, Last, I, Compare: integer;
   Token: string;
+  FDiffer: boolean;
 begin
   First := Low(PasDirectives);
   Last := High(PasDirectives);
@@ -365,29 +318,8 @@ begin
 end;  { IsDirective }
 
 function TPasFormatter.IsKeyWord(aToken: string): boolean;
-var
-  First, Last, I, Compare: integer;
-  Token: string;
 begin
-  First := Low(PasKeywords);
-  Last := High(PasKeywords);
-  Result := False;
-  Token := UpperCase(aToken);
-  while First <= Last do
-  begin
-    I := (First + Last) shr 1;
-    Compare := CompareStr(PasKeywords[i], Token);
-    if Compare = 0 then
-    begin
-      Result := True;
-      break;
-    end
-    else
-    if Compare < 0 then
-      First := I + 1
-    else
-      Last := I - 1;
-  end;
+  Result := BinarySearch(PasKeywords, aToken);
 end;  { IsKeyWord }
 
 procedure TPasFormatter.HandleIdentifier;
@@ -396,9 +328,9 @@ var
   tokenType: TTokenType;
 begin
   (* cannot start with number but it can contain one *)
-  if FParser.Scan(['A'..'Z', 'a'..'z', '_'], ['A'..'Z', 'a'..'z', '0'..'9', '_']) then
+  if Parser.Scan(['A'..'Z', 'a'..'z', '_'], ['A'..'Z', 'a'..'z', '0'..'9', '_']) then
   begin
-    tokenString := FParser.TokenAndMark;
+    tokenString := Parser.TokenAndMark;
 
     if IsKeyWord(tokenString) then
     begin
@@ -414,41 +346,24 @@ begin
   end;
 end;
 
-procedure TPasFormatter.HandleSpace;
-begin
-  if FParser.Scan([#1..#9, #11, #12, #14..#32], [#1..#9, #11, #12, #14..#32]) then
-    WriteOut(ttSpace);
-end;
-
 procedure TPasFormatter.HandleNumber;
 begin
-  if FParser.Scan(['0'..'9'], ['0'..'9', '.', 'e', 'E']) then
+  if Parser.Scan(['0'..'9'], ['0'..'9', '.', 'e', 'E']) then
     WriteOut(ttNumber);
 end;
 
 procedure TPasFormatter.HandleSymbol;
 begin
-  if (FParser.Current = '/') and (FParser.PeekNext = '/') then
+  if (Parser.Current = '/') and (Parser.PeekNext = '/') then
     HandleSlashesC
-  else if (FParser.Current = '(') and (FParser.PeekNext = '*') then
+  else if (Parser.Current = '(') and (Parser.PeekNext = '*') then
     HandleAnsiC
-  else if (FParser.Current in ['!', '"', '%', '&', '('..'/', ':'..'@',
+  else if (Parser.Current in ['!', '"', '%', '&', '('..'/', ':'..'@',
     '['..'^', '`', '~']) then
   begin
-    FParser.Next;
+    Parser.Next;
     WriteOut(ttSymbol);
   end;
-end;
-
-
-procedure TPasFormatter.WriteOut(tokenType: TTokenType; const str: string);
-begin
-  FFormatter.WriteToken(str, tokenType);
-end;
-
-procedure TPasFormatter.WriteOut(tokenType: TTokenType);
-begin
-  WriteOut(tokenType, FParser.TokenAndMark);
 end;
 
 end.

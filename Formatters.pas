@@ -24,7 +24,7 @@ type
     procedure WriteToken(const NewToken: string; TokenState: TTokenType); virtual; abstract;
   end;
 
-  TPasToRTF = class(TFormatterBase)
+  TRTFFormatter = class(TFormatterBase)
   private
     function SetSpecial(const str: string): string;
   public
@@ -33,7 +33,7 @@ type
     procedure WriteToken(const NewToken: string; TokenState: TTokenType); override;
   end;
 
-  TPasToHTML = class(TFormatterBase)
+  THTMLFormatter = class(TFormatterBase)
   private
     function SetSpecial(const str: string): string;
   public
@@ -71,7 +71,7 @@ end;
 
 (* Pascal to RTF converter *)
 
-procedure TPasToRTF.WriteToken(const NewToken: string;
+procedure TRTFFormatter.WriteToken(const NewToken: string;
   TokenState: TTokenType);
 var
   escapedToken, FormatToken: string;
@@ -91,7 +91,7 @@ begin
   _WriteOut(OutStream, FormatToken);
 end;
 
-function TPasToRTF.SetSpecial(const str: string): string;
+function TRTFFormatter.SetSpecial(const str: string): string;
 var
   i: integer;
 begin
@@ -104,13 +104,13 @@ begin
     end;
 end;
 
-procedure TPasToRTF.WriteFooter;
+procedure TRTFFormatter.WriteFooter;
 begin
   _WriteOutLn(OutStream, '');
   _WriteOutLn(OutStream, '\par}');
 end;
 
-procedure TPasToRTF.WriteHeader;
+procedure TRTFFormatter.WriteHeader;
 begin
   _WriteOutLn(OutStream, '{\rtf1\ansi\ansicpg1253\deff0\deflang1032');
   _WriteOutLn(OutStream, '');
@@ -125,7 +125,7 @@ end;
 
 (* Pascal To HTML Converter *)
 
-procedure TPasToHTML.WriteToken(const NewToken: string;
+procedure THTMLFormatter.WriteToken(const NewToken: string;
   TokenState: TTokenType);
 var
   escapedToken, FormatToken: string;
@@ -147,7 +147,7 @@ begin
   _WriteOut(OutStream, FormatToken);
 end;
 
-function TPasToHTML.SetSpecial(const str: string): string;
+function THTMLFormatter.SetSpecial(const str: string): string;
 var
   i: integer;
 begin
@@ -168,13 +168,13 @@ begin
     end;
 end;
 
-procedure TPasToHTML.WriteFooter;
+procedure THTMLFormatter.WriteFooter;
 begin
   _WriteOutLn(OutStream, '</TT></BODY>');
   _WriteOutLn(OutStream, '</HTML>');
 end;
 
-procedure TPasToHTML.WriteHeader;
+procedure THTMLFormatter.WriteHeader;
 begin
   _WriteOutLn(OutStream, '<HTML>');
   _WriteOutLn(OutStream, '<HEAD>');

@@ -5,21 +5,25 @@ unit frmMain;
 interface
 
 uses
-  LCLIntf, LCLType, LMessages, Messages, SysUtils, Classes, Graphics,
-  Controls, Forms, Dialogs,
-  StdCtrls, ComCtrls, Buttons, ExtCtrls, Menus, ToolWin, ImgList;
+  LCLIntf, LCLType, SysUtils, Classes, Graphics, Controls,
+  Forms, Dialogs, ComCtrls, Buttons, ExtCtrls, Menus,
+  IpHtml;
 
 type
   TDocumentType = (dtNone, dtCpp, dtPascal);
 
+  TStreamPipe = procedure(inputStream, outputStream: TStream);
+
+  { TMainForm }
+
   TMainForm = class(TForm)
+    IpHtmlPanel1: TIpHtmlPanel;
     OpenDialog1: TOpenDialog;
     SaveDialog1: TSaveDialog;
     MainMenu1: TMainMenu;
     FileMenu: TMenuItem;
     FileOpen: TMenuItem;
     FileExit: TMenuItem;
-    RichEdit1: TMemo;
     FileSaveAs: TMenuItem;
     ToolsMenu: TMenuItem;
     ToolsPref: TMenuItem;
@@ -42,12 +46,13 @@ type
     FCurFileName: string;
     procedure SetDocType(Value: TDocumentType);
     procedure SetCurFileName(const Value: string);
+    procedure OpenFile(const FileName: string; aDocType: TDocumentType; processor: TStreamPipe); overload;
     property DocType: TDocumentType read FDocType write SetDocType;
     property CurFileName: string read FCurFileName write SetCurFileName;
   public
     procedure OpenCppFile(const FileName: string);
     procedure OpenPasFile(const FileName: string);
-    procedure OpenFile(const FileName: string);
+    procedure OpenFile(const FileName: string); overload;
   end;
 
 var
@@ -58,6 +63,7 @@ implementation
 uses PasConv, CppConv, frmAbout;
 
 {$R *.lfm}
+
 
 procedure TMainForm.SetCurFileName(const Value: string);
 begin
@@ -72,26 +78,7 @@ begin
   FileSaveAs.Enabled := FDocType <> dtNone;
 end;
 
-procedure TMainForm.OpenCppFile(const FileName: string);
-var
-  stream1: TFileStream;
-  stream2: TMemoryStream;
-  fmt: TCppToRTF;
-begin
-  stream1 := TFileStream.Create(FileName, fmOpenRead);
-  stream2 := TMemoryStream.Create;
-  fmt := TCppToRTF.Create;
-  fmt.FormatStream(stream1, stream2);
-  fmt.Free;
-  stream1.Free;
-  stream2.seek(0, 0);
-  RichEdit1.Lines.LoadFromStream(stream2);
-  stream2.Free;
-  DocType := dtCpp;
-  CurFileName := FileName;
-end;
-
-procedure TMainForm.OpenPasFile(const FileName: string);
+procedure TMainForm.OpenFile(const FileName: string; aDocType: TDocumentType; processor: TStreamPipe);
 var
   inputStream: TFileStream;
   outputStream: TMemoryStream;
@@ -100,10 +87,10 @@ begin
   try
     outputStream := TMemoryStream.Create;
     try
-      PasToRTFStream(inputStream, outputStream);
+      processor(inputStream, outputStream);
       outputStream.seek(0, 0);
-      RichEdit1.Lines.LoadFromStream(outputStream);
-      DocType := dtPascal;
+      IpHtmlPanel1.SetHtmlFromStream(outputStream);
+      DocType := aDocType;
       CurFileName := FileName;
     finally
       outputStream.Free;
@@ -111,6 +98,16 @@ begin
   finally
     inputStream.Free;
   end;
+end;
+
+procedure TMainForm.OpenCppFile(const FileName: string);
+begin
+  OpenFile(FileName, dtCpp, CppToHTMLStream);
+end;
+
+procedure TMainForm.OpenPasFile(const FileName: string);
+begin
+  OpenFile(Filename, dtPascal, PasToHTMLStream);
 end;
 
 procedure TMainForm.FileOpenClick(Sender: TObject);
@@ -175,18 +172,8 @@ begin
         case FDocType of
           dtCpp:
             case SaveDialog1.FilterIndex of
-              1:
-              begin
-                fmt2 := TCppToRTF.Create;
-                fmt2.FormatStream(inputStream, outputStream);
-                fmt2.Free;
-              end;
-              2:
-              begin
-                fmt2 := TCppToHTML.Create;
-                fmt2.FormatStream(inputStream, outputStream);
-                fmt2.Free;
-              end;
+              1: CppToRTFStream(inputStream, outputStream);
+              2: CppToHTMLStream(inputStream, outputStream);
               else
                 raise Exception.Create('Invalid CPP Converter');
             end;
