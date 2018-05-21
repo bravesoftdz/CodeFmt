@@ -36,11 +36,11 @@ function CreateLexer(DocumentType: TDocumentType; Formatter: TFormatterBase): TL
 begin
   case DocumentType of
     dtCpp:
-      Result := TCppLexer.Create(Formatter);
+      Result := TCppLexer.Create(Formatter.WriteToken);
     dtPascal:
-      Result := TPascalLexer.Create(Formatter);
+      Result := TPascalLexer.Create(Formatter.WriteToken);
     dtEditorConfig:
-      Result := TEditorConfigLexer.Create(Formatter);
+      Result := TEditorConfigLexer.Create(Formatter.WriteToken);
     else
       raise Exception.Create('Not implemented');
   end;
@@ -53,12 +53,14 @@ var
 begin
   formatter := CreateFormatter(FormatterType, OutputStream);
   try
+    formatter.WriteHeader;
     lexer := CreateLexer(DocumentType, formatter);
     try
       lexer.FormatStream(InputStream);
     finally
       lexer.Free;
     end;
+    formatter.WriteFooter;
   finally
     formatter.Free;
   end;

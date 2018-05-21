@@ -5,34 +5,35 @@ unit LexerBase;
 interface
 
 uses
-  Classes, SysUtils, StreamTokenizer, FormatterBase, TokenTypes;
+  Classes, SysUtils, StreamTokenizer, TokenTypes;
 
 type
+  TLexerTokenFound = procedure(const Token: string; const TokenType: TTokenType) of object;
+
   TLexerBase = class
   private
-    FFormatter: TFormatterBase;
+    FTokenFound: TLexerTokenFound;
     FStreamTokenizer: TStreamTokenizer;
   protected
-    procedure WriteOut(tokenType: TTokenType; const str: string); overload;
-    procedure WriteOut(tokenType: TTokenType); overload;
+    procedure CurrentTokenFound(const TokenType: TTokenType);
     procedure Scan; virtual;
-    property Formatter: TFormatterBase read FFormatter;
+    property TokenFound: TLexerTokenFound read FTokenFound;
     property StreamTokenizer: TStreamTokenizer read FStreamTokenizer;
   public
-    constructor Create(Formatter: TFormatterBase);
+    constructor Create(TokenFound: TLexerTokenFound);
     procedure FormatStream(InputStream: TStream);
   end;
 
-procedure HandleCRLF(StreamTokenizer: TStreamTokenizer; Formatter: TFormatterBase);
-procedure HandleSpace(StreamTokenizer: TStreamTokenizer; Formatter: TFormatterBase);
-procedure HandleSlashesComment(StreamTokenizer: TStreamTokenizer; Formatter: TFormatterBase);
-procedure HandleLineComment(StreamTokenizer: TStreamTokenizer; Formatter: TFormatterBase; CommentMark: string);
+procedure HandleCRLF(StreamTokenizer: TStreamTokenizer; TokenFound: TLexerTokenFound);
+procedure HandleSpace(StreamTokenizer: TStreamTokenizer; TokenFound: TLexerTokenFound);
+procedure HandleSlashesComment(StreamTokenizer: TStreamTokenizer; TokenFound: TLexerTokenFound);
+procedure HandleLineComment(StreamTokenizer: TStreamTokenizer; TokenFound: TLexerTokenFound; CommentMark: string);
 
 implementation
 
-constructor TLexerBase.Create(Formatter: TFormatterBase);
+constructor TLexerBase.Create(TokenFound: TLexerTokenFound);
 begin
-  FFormatter := Formatter;
+  FTokenFound := TokenFound;
 end;
 
 procedure TLexerBase.FormatStream(InputStream: TStream);
@@ -41,36 +42,30 @@ var
 begin
   FStreamTokenizer := TStreamTokenizer.Create(InputStream);
   try
-    FFormatter.WriteHeader;
-
     while not FStreamTokenizer.IsEof do
     begin
+      { capture current position of the stream }
       oldPosition := FStreamTokenizer.Position;
 
+      { scan next token }
       Scan;
 
+      { if nothing was scanned... }
       if oldPosition = FStreamTokenizer.Position then
       begin
         (* unexpected token, read one char and print it out immediately *)
         FStreamTokenizer.Next;
-        WriteOut(ttUnknown);
+        CurrentTokenFound(ttUnknown);
       end;
     end;
-
-    FFormatter.WriteFooter;
   finally
     FStreamTokenizer.Free;
   end;
 end;
 
-procedure TLexerBase.WriteOut(tokenType: TTokenType; const str: string);
+procedure TLexerBase.CurrentTokenFound(const TokenType: TTokenType);
 begin
-  FFormatter.WriteToken(str, tokenType);
-end;
-
-procedure TLexerBase.WriteOut(tokenType: TTokenType);
-begin
-  WriteOut(tokenType, FStreamTokenizer.TokenAndMark);
+  TokenFound(FStreamTokenizer.TokenAndMark, TokenType);
 end;
 
 procedure TLexerBase.Scan;
@@ -78,40 +73,40 @@ begin
 
 end;
 
-procedure HandleCRLF(StreamTokenizer: TStreamTokenizer; Formatter: TFormatterBase);
+procedure HandleCRLF(StreamTokenizer: TStreamTokenizer; TokenFound: TLexerTokenFound);
 begin
   if (StreamTokenizer.Current = #13) and (StreamTokenizer.PeekNext = #10) then
   begin
     StreamTokenizer.Next;
     StreamTokenizer.Next;
-    Formatter.WriteToken(StreamTokenizer.TokenAndMark, ttCRLF);
+    TokenFound(StreamTokenizer.TokenAndMark, ttCRLF);
   end
   else if (StreamTokenizer.Current in [#13, #10]) then
   begin
     StreamTokenizer.Next;
-    Formatter.WriteToken(StreamTokenizer.TokenAndMark, ttCRLF);
+    TokenFound(StreamTokenizer.TokenAndMark, ttCRLF);
   end;
 end;
 
-procedure HandleSpace(StreamTokenizer: TStreamTokenizer; Formatter: TFormatterBase);
+procedure HandleSpace(StreamTokenizer: TStreamTokenizer; TokenFound: TLexerTokenFound);
 begin
   if StreamTokenizer.Scan([#1..#9, #11, #12, #14..#32], [#1..#9, #11, #12, #14..#32]) then
-    Formatter.WriteToken(StreamTokenizer.TokenAndMark, ttSpace);
+    TokenFound(StreamTokenizer.TokenAndMark, ttSpace);
 end;
 
-procedure HandleSlashesComment(StreamTokenizer: TStreamTokenizer; Formatter: TFormatterBase);
+procedure HandleSlashesComment(StreamTokenizer: TStreamTokenizer; TokenFound: TLexerTokenFound);
 begin
-  HandleLineComment(StreamTokenizer, Formatter, '//');
+  HandleLineComment(StreamTokenizer, TokenFound, '//');
 end;
 
-procedure HandleLineComment(StreamTokenizer: TStreamTokenizer; Formatter: TFormatterBase; CommentMark: string);
+procedure HandleLineComment(StreamTokenizer: TStreamTokenizer; TokenFound: TLexerTokenFound; CommentMark: string);
 begin
   if StreamTokenizer.PeekLength(Length(CommentMark)) = CommentMark then
   begin
     while (not StreamTokenizer.IsEof) and (not StreamTokenizer.IsEoln) do
       StreamTokenizer.Next;
 
-    Formatter.WriteToken(StreamTokenizer.TokenAndMark, ttComment);
+    TokenFound(StreamTokenizer.TokenAndMark, ttComment);
   end;
 end;
 

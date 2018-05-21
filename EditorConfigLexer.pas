@@ -23,9 +23,9 @@ uses TokenTypes;
 
 procedure TEditorConfigLexer.Scan;
 begin
-  HandleCRLF(StreamTokenizer, Formatter);
-  HandleSpace(StreamTokenizer, Formatter);
-  HandleLineComment(StreamTokenizer, Formatter, '#');
+  HandleCRLF(StreamTokenizer, TokenFound);
+  HandleSpace(StreamTokenizer, TokenFound);
+  HandleLineComment(StreamTokenizer, TokenFound, '#');
   HandleIdentifier;
   HandleNumber;
   HandleSymbol;
@@ -34,13 +34,13 @@ end;
 procedure TEditorConfigLexer.HandleIdentifier;
 begin
   if StreamTokenizer.Scan(['a'..'z'], ['a'..'z', '0'..'9', '-', '_']) then
-    WriteOut(ttIdentifier);
+    CurrentTokenFound(ttIdentifier);
 end;
 
 procedure TEditorConfigLexer.HandleNumber;
 begin
   if StreamTokenizer.Scan(['0'..'9'], ['0'..'9']) then
-    WriteOut(ttNumber);
+    CurrentTokenFound(ttNumber);
 end;
 
 procedure TEditorConfigLexer.HandleSymbol;
@@ -48,7 +48,7 @@ begin
   if StreamTokenizer.Current in ['[', ']', '=', '*'] then
   begin
     StreamTokenizer.Next;
-    WriteOut(ttSymbol);
+    CurrentTokenFound(ttSymbol);
   end;
 end;
 

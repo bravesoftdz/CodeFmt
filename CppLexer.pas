@@ -38,9 +38,9 @@ const
 
 procedure TCppLexer.Scan;
 begin
-  HandleCRLF(StreamTokenizer, Formatter);
-  HandleSpace(StreamTokenizer, Formatter);
-  HandleSlashesComment(StreamTokenizer, Formatter);
+  HandleCRLF(StreamTokenizer, TokenFound);
+  HandleSpace(StreamTokenizer, TokenFound);
+  HandleSlashesComment(StreamTokenizer, TokenFound);
   HandleString;
   HandleIdentifier;
   HandlePreProcessorDirective;
@@ -56,7 +56,7 @@ begin
       StreamTokenizer.Next;
 
     StreamTokenizer.Next;
-    WriteOut(ttString);
+    CurrentTokenFound(ttString);
   end;
 end;
 
@@ -88,7 +88,7 @@ begin
     else
       tokenType := ttIdentifier;
 
-    WriteOut(tokenType, token);
+    TokenFound(token, tokenType);
   end;
 end;
 
@@ -99,7 +99,7 @@ begin
     while (not StreamTokenizer.IsEof) and (not StreamTokenizer.IsEoln) do
       StreamTokenizer.Next;
 
-    WriteOut(ttPreProcessor);
+    CurrentTokenFound(ttPreProcessor);
   end;
 end;
 
@@ -108,7 +108,7 @@ begin
   if StreamTokenizer.Current in ['(', ')', ';', '{', '}', '[', ']'] then
   begin
     StreamTokenizer.Next;
-    WriteOut(ttSymbol);
+    CurrentTokenFound(ttSymbol);
   end;
 end;
 

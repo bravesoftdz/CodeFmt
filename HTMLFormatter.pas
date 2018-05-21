@@ -14,18 +14,18 @@ type
   public
     procedure WriteFooter; override;
     procedure WriteHeader; override;
-    procedure WriteToken(const NewToken: string; TokenState: TTokenType); override;
+    procedure WriteToken(const Token: string; const TokenType: TTokenType); override;
   end;
 
 implementation
 
-procedure THTMLFormatter.WriteToken(const NewToken: string;
-  TokenState: TTokenType);
+procedure THTMLFormatter.WriteToken(const Token: string;
+  const TokenType: TTokenType);
 var
   escapedToken, FormatToken: string;
 begin
-  escapedToken := SetSpecial(NewToken);
-  case TokenState of
+  escapedToken := SetSpecial(Token);
+  case TokenType of
     ttCRLF:
       FormatToken := '<BR>' + escapedToken;
     ttDirective, ttKeyWord:

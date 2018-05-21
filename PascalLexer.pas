@@ -57,9 +57,9 @@ const
 
 procedure TPascalLexer.Scan;
 begin
-  HandleCRLF(StreamTokenizer, Formatter);
-  HandleSpace(StreamTokenizer, Formatter);
-  HandleSlashesComment(StreamTokenizer, Formatter);
+  HandleCRLF(StreamTokenizer, TokenFound);
+  HandleSpace(StreamTokenizer, TokenFound);
+  HandleSlashesComment(StreamTokenizer, TokenFound);
   HandleAnsiComments;
   HandleIdentifier;
   HandleNumber;
@@ -97,7 +97,7 @@ begin
       StreamTokenizer.Next;
     end;
 
-    WriteOut(ttComment);
+    CurrentTokenFound(ttComment);
   end;
 end;
 
@@ -108,11 +108,11 @@ begin
     { print accumulated comment so far }
     if not StreamTokenizer.IsEmptyToken then
     begin
-      WriteOut(ttComment);
+      CurrentTokenFound(ttComment);
     end;
 
     { print CRLF }
-    HandleCRLF(StreamTokenizer, Formatter);
+    HandleCRLF(StreamTokenizer, TokenFound);
   end
   else
   begin
@@ -135,7 +135,7 @@ begin
     if not StreamTokenizer.IsEof then
       StreamTokenizer.Next;
 
-    WriteOut(ttComment);
+    CurrentTokenFound(ttComment);
   end;
 end;
 
@@ -148,20 +148,20 @@ begin
       StreamTokenizer.Next;
 
     StreamTokenizer.Next;
-    WriteOut(ttString);
+    CurrentTokenFound(ttString);
   end;
 end;  { HandleString }
 
 procedure TPascalLexer.HandleChar;
 begin
   if StreamTokenizer.Scan(['#'], ['0'..'9']) then
-    WriteOut(ttString);
+    CurrentTokenFound(ttString);
 end;
 
 procedure TPascalLexer.HandleHexNumber;
 begin
   if StreamTokenizer.Scan(['$'], ['0'..'9', 'A'..'F', 'a'..'f']) then
-    WriteOut(ttNumber);
+    CurrentTokenFound(ttNumber);
 end;
 
 function BinarySearch(hay: array of string; needle: string): boolean;
@@ -243,17 +243,17 @@ end;
 
 procedure TPascalLexer.HandleIdentifier;
 var
-  tokenString: string;
+  token: string;
   tokenType: TTokenType;
 begin
   (* cannot start with number but it can contain one *)
   if StreamTokenizer.Scan(['A'..'Z', 'a'..'z', '_'], ['A'..'Z', 'a'..'z', '0'..'9', '_']) then
   begin
-    tokenString := StreamTokenizer.TokenAndMark;
+    token := StreamTokenizer.TokenAndMark;
 
-    if IsKeyword(tokenString) then
+    if IsKeyword(token) then
     begin
-      if IsDirective(tokenString) then
+      if IsDirective(token) then
         tokenType := ttDirective
       else
         tokenType := ttKeyWord;
@@ -261,14 +261,14 @@ begin
     else
       tokenType := ttIdentifier;
 
-    WriteOut(tokenType, tokenString);
+    TokenFound(token, tokenType);
   end;
 end;
 
 procedure TPascalLexer.HandleNumber;
 begin
   if StreamTokenizer.Scan(['0'..'9'], ['0'..'9', '.', 'e', 'E']) then
-    WriteOut(ttNumber);
+    CurrentTokenFound(ttNumber);
 end;
 
 procedure TPascalLexer.HandleSymbol;
@@ -277,7 +277,7 @@ begin
     '['..'^', '`', '~']) then
   begin
     StreamTokenizer.Next;
-    WriteOut(ttSymbol);
+    CurrentTokenFound(ttSymbol);
   end;
 end;
 
