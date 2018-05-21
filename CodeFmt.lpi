@@ -66,7 +66,7 @@
         <IsPartOfProject Value="True"/>
       </Unit5>
       <Unit6>
-        <Filename Value="Formatters.pas"/>
+        <Filename Value="FormatterBase.pas"/>
         <IsPartOfProject Value="True"/>
       </Unit6>
       <Unit7>

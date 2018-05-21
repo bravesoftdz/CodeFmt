@@ -5,7 +5,7 @@ unit HTMLFormatter;
 interface
 
 uses
-  Classes, SysUtils, TokenTypes, Formatters;
+  Classes, SysUtils, TokenTypes, FormatterBase;
 
 type
   THTMLFormatter = class(TFormatterBase)

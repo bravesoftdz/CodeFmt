@@ -1,4 +1,4 @@
-unit Formatters;
+unit FormatterBase;
 
 {$mode delphi}
 

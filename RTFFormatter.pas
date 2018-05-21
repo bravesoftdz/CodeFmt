@@ -5,7 +5,7 @@ unit RTFFormatter;
 interface
 
 uses
-  Classes, SysUtils, TokenTypes, Formatters;
+  Classes, SysUtils, TokenTypes, FormatterBase;
 
 type
   TRTFFormatter = class(TFormatterBase)

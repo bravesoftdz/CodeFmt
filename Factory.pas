@@ -18,7 +18,7 @@ implementation
 
 uses
   LexerBase, PascalLexer, CppLexer, EditorConfigLexer,
-  Formatters, RTFFormatter, HTMLFormatter;
+  FormatterBase, RTFFormatter, HTMLFormatter;
 
 function CreateFormatter(FormatterType: TFormatterType; OutputStream: TStream): TFormatterBase;
 begin

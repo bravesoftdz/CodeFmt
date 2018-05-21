@@ -5,7 +5,7 @@ unit LexerBase;
 interface
 
 uses
-  Classes, SysUtils, StreamTokenizer, Formatters, TokenTypes;
+  Classes, SysUtils, StreamTokenizer, FormatterBase, TokenTypes;
 
 type
   TLexerBase = class
