@@ -12,11 +12,11 @@ type
 
   TFormatterType = (ftHtml, ftRtf);
 
-procedure Process(FormatterType: TFormatterType; DocumentType: TDocumentType; inputStream, outputStream: TStream);
+procedure Process(FormatterType: TFormatterType; DocumentType: TDocumentType; InputStream, OutputStream: TStream);
 
 implementation
 
-uses PasConv, CppConv, Formatters, EditorConfigLexer, LexerBase;
+uses PascalLexer, CppLexer, Formatters, EditorConfigLexer, LexerBase;
 
 function CreateFormatter(FormatterType: TFormatterType; OutputStream: TStream): TFormatterBase;
 begin
@@ -30,13 +30,13 @@ begin
   end;
 end;
 
-function CreateLexer(DocumentType: TDocumentType; Formatter: TFormatterBase): TLexBase;
+function CreateLexer(DocumentType: TDocumentType; Formatter: TFormatterBase): TLexerBase;
 begin
   case DocumentType of
     dtCpp:
-      Result := TCppFormatter.Create(Formatter);
+      Result := TCppLexer.Create(Formatter);
     dtPascal:
-      Result := TPasFormatter.Create(Formatter);
+      Result := TPascalLexer.Create(Formatter);
     dtEditorConfig:
       Result := TEditorConfigLexer.Create(Formatter);
     else
@@ -44,16 +44,16 @@ begin
   end;
 end;
 
-procedure Process(FormatterType: TFormatterType; DocumentType: TDocumentType; inputStream, outputStream: TStream);
+procedure Process(FormatterType: TFormatterType; DocumentType: TDocumentType; InputStream, OutputStream: TStream);
 var
   formatter: TFormatterBase;
-  lexer: TLexBase;
+  lexer: TLexerBase;
 begin
-  formatter := CreateFormatter(FormatterType, outputStream);
+  formatter := CreateFormatter(FormatterType, OutputStream);
   try
     lexer := CreateLexer(DocumentType, formatter);
     try
-      lexer.FormatStream(inputStream);
+      lexer.FormatStream(InputStream);
     finally
       lexer.Free;
     end;

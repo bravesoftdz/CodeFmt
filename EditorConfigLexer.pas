@@ -8,7 +8,7 @@ uses
   Classes, SysUtils, LexerBase;
 
 type
-  TEditorConfigLexer = class(TLexBase)
+  TEditorConfigLexer = class(TLexerBase)
   protected
     procedure Scan; override;
   private
@@ -19,14 +19,13 @@ type
 
 implementation
 
-uses
-  Formatters;
+uses TokenTypes;
 
 procedure TEditorConfigLexer.Scan;
 begin
-  HandleCRLF(Parser, Formatter);
-  HandleSpace(Parser, Formatter);
-  HandleLineComment(Parser, Formatter, '#');
+  HandleCRLF(StreamTokenizer, Formatter);
+  HandleSpace(StreamTokenizer, Formatter);
+  HandleLineComment(StreamTokenizer, Formatter, '#');
   HandleIdentifier;
   HandleNumber;
   HandleSymbol;
@@ -34,21 +33,21 @@ end;
 
 procedure TEditorConfigLexer.HandleIdentifier;
 begin
-  if Parser.Scan(['a'..'z'], ['a'..'z', '0'..'9', '-', '_']) then
+  if StreamTokenizer.Scan(['a'..'z'], ['a'..'z', '0'..'9', '-', '_']) then
     WriteOut(ttIdentifier);
 end;
 
 procedure TEditorConfigLexer.HandleNumber;
 begin
-  if Parser.Scan(['0'..'9'], ['0'..'9']) then
+  if StreamTokenizer.Scan(['0'..'9'], ['0'..'9']) then
     WriteOut(ttNumber);
 end;
 
 procedure TEditorConfigLexer.HandleSymbol;
 begin
-  if Parser.Current in ['[', ']', '=', '*'] then
+  if StreamTokenizer.Current in ['[', ']', '=', '*'] then
   begin
-    Parser.Next;
+    StreamTokenizer.Next;
     WriteOut(ttSymbol);
   end;
 end;

@@ -1,4 +1,4 @@
-unit Parser;
+unit StreamTokenizer;
 
 {$mode delphi}
 
@@ -8,7 +8,7 @@ uses
   Classes, SysUtils;
 
 type
-  TParser = class
+  TStreamTokenizer = class
   private
     FReadBuf: PChar;
     FCurrent: PChar;
@@ -19,7 +19,7 @@ type
     procedure Mark;
     function Token: string;
   public
-    constructor Create(InStream: TStream);
+    constructor Create(InputStream: TStream);
     destructor Destroy; override;
     procedure Next;
     function TokenAndMark: string;
@@ -37,40 +37,40 @@ type
 
 implementation
 
-constructor TParser.Create(InStream: TStream);
+constructor TStreamTokenizer.Create(InputStream: TStream);
 var
   FReadBuf: PChar;
 begin
-  GetMem(FReadBuf, InStream.Size + 1);
-  FReadBufSize := InStream.Read(FReadBuf^, InStream.Size);
+  GetMem(FReadBuf, InputStream.Size + 1);
+  FReadBufSize := InputStream.Read(FReadBuf^, InputStream.Size);
   FReadBuf[FReadBufSize] := #0;
   FCurrent := FReadBuf;
   FPosition := 0;
   Mark;
 end;
 
-destructor TParser.Destroy;
+destructor TStreamTokenizer.Destroy;
 begin
   FreeMem(FReadBuf);
 end;
 
-function TParser.GetCurrent: char;
+function TStreamTokenizer.GetCurrent: char;
 begin
   GetCurrent := FCurrent^;
 end;
 
-procedure TParser.Mark;
+procedure TStreamTokenizer.Mark;
 begin
   FMark := FCurrent;
 end;
 
-procedure TParser.Next;
+procedure TStreamTokenizer.Next;
 begin
   Inc(FCurrent);
   Inc(FPosition);
 end;
 
-function TParser.Token: string;
+function TStreamTokenizer.Token: string;
 var
   tokenLen: integer;
   tokenString: string;
@@ -80,13 +80,13 @@ begin
   Token := tokenString;
 end;
 
-function TParser.TokenAndMark: string;
+function TStreamTokenizer.TokenAndMark: string;
 begin
   TokenAndMark := Token;
   Mark;
 end;
 
-function TParser.PeekNext: char;
+function TStreamTokenizer.PeekNext: char;
 begin
   if IsEof then
     PeekNext := #0
@@ -94,22 +94,22 @@ begin
     PeekNext := (FCurrent + 1)^;
 end;
 
-function TParser.IsEof: boolean;
+function TStreamTokenizer.IsEof: boolean;
 begin
   IsEof := Current = #0;
 end;
 
-function TParser.IsEmptyToken: boolean;
+function TStreamTokenizer.IsEmptyToken: boolean;
 begin
   IsEmptyToken := FCurrent = FMark;
 end;
 
-function TParser.IsEoln: boolean;
+function TStreamTokenizer.IsEoln: boolean;
 begin
   IsEoln := Current in [#13, #10];
 end;
 
-function TParser.Scan(firstChar: TSysCharSet; validChars: TSysCharSet): boolean;
+function TStreamTokenizer.Scan(firstChar: TSysCharSet; validChars: TSysCharSet): boolean;
 begin
   if Current in firstChar then
   begin
@@ -123,7 +123,7 @@ begin
     Scan := False;
 end;
 
-function TParser.PeekLength(Count: integer): string;
+function TStreamTokenizer.PeekLength(Count: integer): string;
 var
   buffer: string;
   i: integer;

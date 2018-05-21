@@ -45,7 +45,7 @@ var
   sFormatted: string;
   formatterType: TFormatterType;
   i: integer;
-  inputStream, outputStream: TFileStream;
+  InputStream, OutputStream: TFileStream;
 begin
   if (ParamCount = 2) or (ParamCount = 3) then
   begin
@@ -67,16 +67,16 @@ begin
     else if RightSeekPos('.', sFormatted) = 0 then
       sFormatted := sFormatted + sExt[formatterType];
 
-    inputStream := TFileStream.Create(sFileName, fmOpenRead);
+    InputStream := TFileStream.Create(sFileName, fmOpenRead);
     try
-      outputStream := TFileStream.Create(sFormatted, fmCreate);
+      OutputStream := TFileStream.Create(sFormatted, fmCreate);
       try
-        Process(formatterType, dtPascal, inputStream, outputStream);
+        Process(formatterType, dtPascal, InputStream, OutputStream);
       finally
-        outputStream.Free;
+        OutputStream.Free;
       end;
     finally
-      inputStream.Free;
+      InputStream.Free;
     end;
   end
   else

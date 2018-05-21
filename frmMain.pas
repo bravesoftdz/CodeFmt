@@ -74,23 +74,23 @@ end;
 
 procedure TMainForm.OpenFile(const FileName: string; aDocType: TDocumentType);
 var
-  inputStream: TFileStream;
-  outputStream: TMemoryStream;
+  InputStream: TFileStream;
+  OutputStream: TMemoryStream;
 begin
-  inputStream := TFileStream.Create(FileName, fmOpenRead);
+  InputStream := TFileStream.Create(FileName, fmOpenRead);
   try
-    outputStream := TMemoryStream.Create;
+    OutputStream := TMemoryStream.Create;
     try
-      Process(ftHtml, aDocType, inputStream, outputStream);
-      outputStream.seek(0, 0);
-      IpHtmlPanel1.SetHtmlFromStream(outputStream);
+      Process(ftHtml, aDocType, InputStream, OutputStream);
+      OutputStream.seek(0, 0);
+      IpHtmlPanel1.SetHtmlFromStream(OutputStream);
       DocType := aDocType;
       CurFileName := FileName;
     finally
-      outputStream.Free;
+      OutputStream.Free;
     end;
   finally
-    inputStream.Free;
+    InputStream.Free;
   end;
 end;
 
@@ -145,7 +145,7 @@ end;
 
 procedure TMainForm.FileSaveAsClick(Sender: TObject);
 var
-  inputStream, outputStream: TFileStream;
+  InputStream, OutputStream: TFileStream;
   formatterType: TFormatterType;
 begin
   if FDocType <> dtNone then
@@ -159,16 +159,16 @@ begin
           raise Exception.Create('Not implemented!');
       end;
 
-      inputStream := TFileStream.Create(FCurFilename, fmOpenRead);
+      InputStream := TFileStream.Create(FCurFilename, fmOpenRead);
       try
-        outputStream := TFileStream.Create(SaveDialog1.FileName, fmCreate);
+        OutputStream := TFileStream.Create(SaveDialog1.FileName, fmCreate);
         try
-          Process(formatterType, FDocType, inputStream, outputStream);
+          Process(formatterType, FDocType, InputStream, OutputStream);
         finally
-          outputStream.Free;
+          OutputStream.Free;
         end;
       finally
-        inputStream.Free;
+        InputStream.Free;
       end;
     end;
   end;

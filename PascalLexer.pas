@@ -1,13 +1,13 @@
-unit PasConv;
+unit PascalLexer;
 
 {$MODE Delphi}
 
 interface
 
-uses SysUtils, Classes, Parser, Formatters, LexerBase;
+uses SysUtils, Classes, LexerBase;
 
 type
-  TPasFormatter = class(TLexBase)
+  TPascalLexer = class(TLexerBase)
   private
     procedure HandleAnsiComments;
     procedure HandleBorC;
@@ -26,6 +26,8 @@ type
   end;
 
 implementation
+
+uses TokenTypes;
 
 const
   PasKeywords: array[0..98] of string =
@@ -53,11 +55,11 @@ const
     ('END', 'FUNCTION', 'PRIVATE', 'PROCEDURE', 'PRODECTED',
     'PUBLIC', 'PUBLISHED');
 
-procedure TPasFormatter.Scan;
+procedure TPascalLexer.Scan;
 begin
-  HandleCRLF(Parser, Formatter);
-  HandleSpace(Parser, Formatter);
-  HandleSlashesComment(Parser, Formatter);
+  HandleCRLF(StreamTokenizer, Formatter);
+  HandleSpace(StreamTokenizer, Formatter);
+  HandleSlashesComment(StreamTokenizer, Formatter);
   HandleAnsiComments;
   HandleIdentifier;
   HandleNumber;
@@ -71,94 +73,94 @@ end;
 (*
   Handles Ansi style comments, i.e. with parenthesis and stars.
 *)
-procedure TPasFormatter.HandleAnsiComments;
+procedure TPascalLexer.HandleAnsiComments;
 
   function IsEndOfAnsiComment: boolean;
   begin
-    IsEndOfAnsiComment := (Parser.Current = '*') and (Parser.PeekNext = ')');
+    IsEndOfAnsiComment := (StreamTokenizer.Current = '*') and (StreamTokenizer.PeekNext = ')');
   end;
 
 begin
-  if (Parser.Current = '(') and (Parser.PeekNext = '*') then
+  if (StreamTokenizer.Current = '(') and (StreamTokenizer.PeekNext = '*') then
   begin
     { read the '(' and the '*' }
-    Parser.Next;
-    Parser.Next;
+    StreamTokenizer.Next;
+    StreamTokenizer.Next;
 
-    while (not Parser.IsEof) and (not IsEndOfAnsiComment) do
+    while (not StreamTokenizer.IsEof) and (not IsEndOfAnsiComment) do
       HandleMultilineComment;
 
-    if not Parser.IsEof then
+    if not StreamTokenizer.IsEof then
     begin
       { read the closing *) part of the comment }
-      Parser.Next;
-      Parser.Next;
+      StreamTokenizer.Next;
+      StreamTokenizer.Next;
     end;
 
     WriteOut(ttComment);
   end;
 end;
 
-procedure TPasFormatter.HandleMultilineComment;
+procedure TPascalLexer.HandleMultilineComment;
 begin
-  if Parser.IsEoln then
+  if StreamTokenizer.IsEoln then
   begin
     { print accumulated comment so far }
-    if not Parser.IsEmptyToken then
+    if not StreamTokenizer.IsEmptyToken then
     begin
       WriteOut(ttComment);
     end;
 
     { print CRLF }
-    HandleCRLF(Parser, Formatter);
+    HandleCRLF(StreamTokenizer, Formatter);
   end
   else
   begin
     { carry on }
-    Parser.Next;
+    StreamTokenizer.Next;
   end;
 end;
 
 {
   Handles Borland style comments, i.e. with curly braces.
 }
-procedure TPasFormatter.HandleBorC;
+procedure TPascalLexer.HandleBorC;
 begin
-  if Parser.Current = '{' then
+  if StreamTokenizer.Current = '{' then
   begin
-    while (not Parser.IsEof) and (Parser.Current <> '}') do
+    while (not StreamTokenizer.IsEof) and (StreamTokenizer.Current <> '}') do
       HandleMultilineComment;
 
     (* read the closing } part of the comment *)
-    if not Parser.IsEof then
-      Parser.Next;
+    if not StreamTokenizer.IsEof then
+      StreamTokenizer.Next;
 
     WriteOut(ttComment);
   end;
 end;
 
-procedure TPasFormatter.HandleString;
+procedure TPascalLexer.HandleString;
 begin
-  if Parser.Current = #39 then
+  if StreamTokenizer.Current = #39 then
   begin
-    Parser.Next;
-    while (not Parser.IsEof) and (Parser.Current <> #39) do
-      Parser.Next;
+    StreamTokenizer.Next;
+    while (not StreamTokenizer.IsEof) and (StreamTokenizer.Current <> #39) do
+      StreamTokenizer.Next;
 
-    Parser.Next;
+    StreamTokenizer.Next;
     WriteOut(ttString);
   end;
 end;  { HandleString }
 
-procedure TPasFormatter.HandleChar;
+procedure TPascalLexer.HandleChar;
 begin
-  if Parser.Scan(['#'], ['0'..'9']) then
+  if StreamTokenizer.Scan(['#'], ['0'..'9']) then
     WriteOut(ttString);
 end;
 
-procedure TPasFormatter.HandleHexNumber;
+procedure TPascalLexer.HandleHexNumber;
 begin
-  if Parser.Scan(['$'], ['0'..'9', 'A'..'F', 'a'..'f']) then
+  if StreamTokenizer.Scan(['$'], ['0'..'9', 'A'..'F', 'a'..'f']) then
     WriteOut(ttNumber);
 end;
 
@@ -188,12 +190,12 @@ begin
   end;
 end;
 
-function TPasFormatter.IsDiffKey(aToken: string): boolean;
+function TPascalLexer.IsDiffKey(aToken: string): boolean;
 begin
   Result := BinarySearch(PasDiffKeys, aToken);
 end;  { IsDiffKey }
 
-function TPasFormatter.IsDirective(aToken: string): boolean;
+function TPascalLexer.IsDirective(aToken: string): boolean;
 var
   First, Last, I, Compare: integer;
   Token: string;
@@ -234,20 +236,20 @@ begin
   end;
 end;
 
-function TPasFormatter.IsKeyword(aToken: string): boolean;
+function TPascalLexer.IsKeyword(aToken: string): boolean;
 begin
   Result := BinarySearch(PasKeywords, aToken);
 end;
 
-procedure TPasFormatter.HandleIdentifier;
+procedure TPascalLexer.HandleIdentifier;
 var
   tokenString: string;
   tokenType: TTokenType;
 begin
   (* cannot start with number but it can contain one *)
-  if Parser.Scan(['A'..'Z', 'a'..'z', '_'], ['A'..'Z', 'a'..'z', '0'..'9', '_']) then
+  if StreamTokenizer.Scan(['A'..'Z', 'a'..'z', '_'], ['A'..'Z', 'a'..'z', '0'..'9', '_']) then
   begin
-    tokenString := Parser.TokenAndMark;
+    tokenString := StreamTokenizer.TokenAndMark;
 
     if IsKeyword(tokenString) then
     begin
@@ -263,18 +265,18 @@ begin
   end;
 end;
 
-procedure TPasFormatter.HandleNumber;
+procedure TPascalLexer.HandleNumber;
 begin
-  if Parser.Scan(['0'..'9'], ['0'..'9', '.', 'e', 'E']) then
+  if StreamTokenizer.Scan(['0'..'9'], ['0'..'9', '.', 'e', 'E']) then
     WriteOut(ttNumber);
 end;
 
-procedure TPasFormatter.HandleSymbol;
+procedure TPascalLexer.HandleSymbol;
 begin
-  if (Parser.Current in ['!', '"', '%', '&', '('..'/', ':'..'@',
+  if (StreamTokenizer.Current in ['!', '"', '%', '&', '('..'/', ':'..'@',
     '['..'^', '`', '~']) then
   begin
-    Parser.Next;
+    StreamTokenizer.Next;
     WriteOut(ttSymbol);
   end;
 end;

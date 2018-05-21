@@ -5,31 +5,16 @@ unit Formatters;
 interface
 
 uses
-  Classes, SysUtils;
+  Classes, SysUtils, TokenTypes;
 
 type
-  TTokenType = (
-    ttAssembler,
-    ttComment,
-    ttCRLF,
-    ttDirective,
-    ttIdentifier,
-    ttKeyWord,
-    ttNumber,
-    ttPreProcessor,
-    ttSpace,
-    ttString,
-    ttSymbol,
-    ttUnknown
-  );
-
   TFormatterBase = class
   private
-    FOutStream: TStream;
+    FOutputStream: TStream;
   protected
-    property OutStream: TStream read FOutStream;
+    property OutputStream: TStream read FOutputStream;
   public
-    constructor Create(OutStream: TStream);
+    constructor Create(OutputStream: TStream);
     procedure WriteHeader; virtual; abstract;
     procedure WriteFooter; virtual; abstract;
     procedure WriteToken(const NewToken: string; TokenState: TTokenType); virtual; abstract;
@@ -55,7 +40,7 @@ type
 
 implementation
 
-procedure _WriteOut(OutStream: TStream; const str: string);
+procedure _WriteOut(OutputStream: TStream; const str: string);
 var
   b, Buf: PChar;
 begin
@@ -64,20 +49,20 @@ begin
     GetMem(Buf, Length(str) + 1);
     StrCopy(Buf, PChar(str));
     b := Buf;
-    OutStream.Write(Buf^, Length(str));
+    OutputStream.Write(Buf^, Length(str));
     FreeMem(b);
   end;
 end;
 
-procedure _WriteOutLn(OutStream: TStream; const str: string);
+procedure _WriteOutLn(OutputStream: TStream; const str: string);
 begin
-  _WriteOut(OutStream, str);
-  _WriteOut(OutStream, LineEnding);
+  _WriteOut(OutputStream, str);
+  _WriteOut(OutputStream, LineEnding);
 end;
 
-constructor TFormatterBase.Create(OutStream: TStream);
+constructor TFormatterBase.Create(OutputStream: TStream);
 begin
-  FOutStream := OutStream;
+  FOutputStream := OutputStream;
 end;
 
 (* Pascal to RTF converter *)
@@ -99,7 +84,7 @@ begin
       FormatToken := escapedToken;
   end;
 
-  _WriteOut(OutStream, FormatToken);
+  _WriteOut(OutputStream, FormatToken);
 end;
 
 function TRTFFormatter.SetSpecial(const str: string): string;
@@ -117,21 +102,21 @@ end;
 
 procedure TRTFFormatter.WriteFooter;
 begin
-  _WriteOutLn(OutStream, '');
-  _WriteOutLn(OutStream, '\par}');
+  _WriteOutLn(OutputStream, '');
+  _WriteOutLn(OutputStream, '\par}');
 end;
 
 procedure TRTFFormatter.WriteHeader;
 begin
-  _WriteOutLn(OutStream, '{\rtf1\ansi\ansicpg1253\deff0\deflang1032');
-  _WriteOutLn(OutStream, '');
-  _WriteOutLn(OutStream, '{\fonttbl');
-  _WriteOutLn(OutStream, '{\f0\fcourier Courier New Greek;}');
-  _WriteOutLn(OutStream, '}');
-  _WriteOutLn(OutStream, '');
-  _WriteOutLn(OutStream, '{\colortbl ;\red0\green0\blue128;}');
-  _WriteOutLn(OutStream, '');
-  _WriteOutLn(OutStream, '\pard\plain \li120 \fs20');
+  _WriteOutLn(OutputStream, '{\rtf1\ansi\ansicpg1253\deff0\deflang1032');
+  _WriteOutLn(OutputStream, '');
+  _WriteOutLn(OutputStream, '{\fonttbl');
+  _WriteOutLn(OutputStream, '{\f0\fcourier Courier New Greek;}');
+  _WriteOutLn(OutputStream, '}');
+  _WriteOutLn(OutputStream, '');
+  _WriteOutLn(OutputStream, '{\colortbl ;\red0\green0\blue128;}');
+  _WriteOutLn(OutputStream, '');
+  _WriteOutLn(OutputStream, '\pard\plain \li120 \fs20');
 end;
 
 (* Pascal To HTML Converter *)
@@ -157,7 +142,7 @@ begin
       FormatToken := escapedToken;
   end;
 
-  _WriteOut(OutStream, FormatToken);
+  _WriteOut(OutputStream, FormatToken);
 end;
 
 function THTMLFormatter.SetSpecial(const str: string): string;
@@ -183,17 +168,17 @@ end;
 
 procedure THTMLFormatter.WriteFooter;
 begin
-  _WriteOutLn(OutStream, '</TT></BODY>');
-  _WriteOutLn(OutStream, '</HTML>');
+  _WriteOutLn(OutputStream, '</TT></BODY>');
+  _WriteOutLn(OutputStream, '</HTML>');
 end;
 
 procedure THTMLFormatter.WriteHeader;
 begin
-  _WriteOutLn(OutStream, '<HTML>');
-  _WriteOutLn(OutStream, '<HEAD>');
-  _WriteOutLn(OutStream, '<TITLE></TITLE>');
-  _WriteOutLn(OutStream, '</HEAD>');
-  _WriteOutLn(OutStream, '<BODY><TT>');
+  _WriteOutLn(OutputStream, '<HTML>');
+  _WriteOutLn(OutputStream, '<HEAD>');
+  _WriteOutLn(OutputStream, '<TITLE></TITLE>');
+  _WriteOutLn(OutputStream, '</HEAD>');
+  _WriteOutLn(OutputStream, '<BODY><TT>');
 end;
 
 end.

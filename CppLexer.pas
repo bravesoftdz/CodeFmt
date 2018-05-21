@@ -1,13 +1,13 @@
-unit CppConv;
+unit CppLexer;
 
 {$MODE Delphi}
 
 interface
 
-uses SysUtils, Classes, Parser, Formatters, LexerBase;
+uses SysUtils, Classes, LexerBase;
 
 type
-  TCppFormatter = class(TLexBase)
+  TCppLexer = class(TLexerBase)
   private
     procedure HandleString;
     procedure HandleIdentifier;
@@ -18,6 +18,8 @@ type
   end;
 
 implementation
+
+uses TokenTypes;
 
 const
   CppKeyWords: array [0..59] of string =
@@ -34,26 +36,26 @@ const
     'switch', 'template', 'this', 'typedef', 'union',
     'unsigned', 'virtual', 'void', 'volatile', 'while');
 
-procedure TCppFormatter.Scan;
+procedure TCppLexer.Scan;
 begin
-  HandleCRLF(Parser, Formatter);
-  HandleSpace(Parser, Formatter);
-  HandleSlashesComment(Parser, Formatter);
+  HandleCRLF(StreamTokenizer, Formatter);
+  HandleSpace(StreamTokenizer, Formatter);
+  HandleSlashesComment(StreamTokenizer, Formatter);
   HandleString;
   HandleIdentifier;
   HandlePreProcessorDirective;
   HandleSymbol;
 end;
 
-procedure TCppFormatter.HandleString;
+procedure TCppLexer.HandleString;
 begin
-  if Parser.Current = '"' then
+  if StreamTokenizer.Current = '"' then
   begin
-    Parser.Next;
-    while (not Parser.IsEof) and (Parser.Current <> '"') do
-      Parser.Next;
+    StreamTokenizer.Next;
+    while (not StreamTokenizer.IsEof) and (StreamTokenizer.Current <> '"') do
+      StreamTokenizer.Next;
 
-    Parser.Next;
+    StreamTokenizer.Next;
     WriteOut(ttString);
   end;
 end;
@@ -72,14 +74,14 @@ begin
     end;
 end;
 
-procedure TCppFormatter.HandleIdentifier;
+procedure TCppLexer.HandleIdentifier;
 var
   token: string;
   tokenType: TTokenType;
 begin
-  if Parser.Scan(['a'..'z', 'A'..'Z'], ['a'..'z', 'A'..'Z', '_']) then
+  if StreamTokenizer.Scan(['a'..'z', 'A'..'Z'], ['a'..'z', 'A'..'Z', '_']) then
   begin
-    token := Parser.TokenAndMark;
+    token := StreamTokenizer.TokenAndMark;
 
     if ArrayContains(CppKeyWords, token) then
       tokenType := ttKeyWord
@@ -90,22 +92,22 @@ begin
   end;
 end;
 
-procedure TCppFormatter.HandlePreProcessorDirective;
+procedure TCppLexer.HandlePreProcessorDirective;
 begin
-  if Parser.Current = '#' then
+  if StreamTokenizer.Current = '#' then
   begin
-    while (not Parser.IsEof) and (not Parser.IsEoln) do
-      Parser.Next;
+    while (not StreamTokenizer.IsEof) and (not StreamTokenizer.IsEoln) do
+      StreamTokenizer.Next;
 
     WriteOut(ttPreProcessor);
   end;
 end;
 
-procedure TCppFormatter.HandleSymbol;
+procedure TCppLexer.HandleSymbol;
 begin
-  if Parser.Current in ['(', ')', ';', '{', '}', '[', ']'] then
+  if StreamTokenizer.Current in ['(', ')', ';', '{', '}', '[', ']'] then
   begin
-    Parser.Next;
+    StreamTokenizer.Next;
     WriteOut(ttSymbol);
   end;
 end;

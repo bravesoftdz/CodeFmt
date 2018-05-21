@@ -5,113 +5,113 @@ unit LexerBase;
 interface
 
 uses
-  Classes, SysUtils, Parser, Formatters;
+  Classes, SysUtils, StreamTokenizer, Formatters, TokenTypes;
 
 type
-  TLexBase = class
+  TLexerBase = class
   private
     FFormatter: TFormatterBase;
-    FParser: TParser;
+    FStreamTokenizer: TStreamTokenizer;
   protected
     procedure WriteOut(tokenType: TTokenType; const str: string); overload;
     procedure WriteOut(tokenType: TTokenType); overload;
     procedure Scan; virtual;
     property Formatter: TFormatterBase read FFormatter;
-    property Parser: TParser read FParser;
+    property StreamTokenizer: TStreamTokenizer read FStreamTokenizer;
   public
     constructor Create(Formatter: TFormatterBase);
-    procedure FormatStream(InStream: TStream);
+    procedure FormatStream(InputStream: TStream);
   end;
 
-procedure HandleCRLF(Parser: TParser; Formatter: TFormatterBase);
-procedure HandleSpace(Parser: TParser; Formatter: TFormatterBase);
-procedure HandleSlashesComment(Parser: TParser; Formatter: TFormatterBase);
-procedure HandleLineComment(Parser: TParser; Formatter: TFormatterBase; CommentMark: string);
+procedure HandleCRLF(StreamTokenizer: TStreamTokenizer; Formatter: TFormatterBase);
+procedure HandleSpace(StreamTokenizer: TStreamTokenizer; Formatter: TFormatterBase);
+procedure HandleSlashesComment(StreamTokenizer: TStreamTokenizer; Formatter: TFormatterBase);
+procedure HandleLineComment(StreamTokenizer: TStreamTokenizer; Formatter: TFormatterBase; CommentMark: string);
 
 implementation
 
-constructor TLexBase.Create(Formatter: TFormatterBase);
+constructor TLexerBase.Create(Formatter: TFormatterBase);
 begin
   FFormatter := Formatter;
 end;
 
-procedure TLexBase.FormatStream(InStream: TStream);
+procedure TLexerBase.FormatStream(InputStream: TStream);
 var
   oldPosition: integer;
 begin
-  FParser := TParser.Create(InStream);
+  FStreamTokenizer := TStreamTokenizer.Create(InputStream);
   try
     FFormatter.WriteHeader;
 
-    while not FParser.IsEof do
+    while not FStreamTokenizer.IsEof do
     begin
-      oldPosition := FParser.Position;
+      oldPosition := FStreamTokenizer.Position;
 
       Scan;
 
-      if oldPosition = FParser.Position then
+      if oldPosition = FStreamTokenizer.Position then
       begin
         (* unexpected token, read one char and print it out immediately *)
-        FParser.Next;
+        FStreamTokenizer.Next;
         WriteOut(ttUnknown);
       end;
     end;
 
     FFormatter.WriteFooter;
   finally
-    FParser.Free;
+    FStreamTokenizer.Free;
   end;
 end;
 
-procedure TLexBase.WriteOut(tokenType: TTokenType; const str: string);
+procedure TLexerBase.WriteOut(tokenType: TTokenType; const str: string);
 begin
   FFormatter.WriteToken(str, tokenType);
 end;
 
-procedure TLexBase.WriteOut(tokenType: TTokenType);
+procedure TLexerBase.WriteOut(tokenType: TTokenType);
 begin
-  WriteOut(tokenType, FParser.TokenAndMark);
+  WriteOut(tokenType, FStreamTokenizer.TokenAndMark);
 end;
 
-procedure TLexBase.Scan;
+procedure TLexerBase.Scan;
 begin
 
 end;
 
-procedure HandleCRLF(Parser: TParser; Formatter: TFormatterBase);
+procedure HandleCRLF(StreamTokenizer: TStreamTokenizer; Formatter: TFormatterBase);
 begin
-  if (Parser.Current = #13) and (Parser.PeekNext = #10) then
+  if (StreamTokenizer.Current = #13) and (StreamTokenizer.PeekNext = #10) then
   begin
-    Parser.Next;
-    Parser.Next;
-    Formatter.WriteToken(Parser.TokenAndMark, ttCRLF);
+    StreamTokenizer.Next;
+    StreamTokenizer.Next;
+    Formatter.WriteToken(StreamTokenizer.TokenAndMark, ttCRLF);
   end
-  else if (Parser.Current in [#13, #10]) then
+  else if (StreamTokenizer.Current in [#13, #10]) then
   begin
-    Parser.Next;
-    Formatter.WriteToken(Parser.TokenAndMark, ttCRLF);
+    StreamTokenizer.Next;
+    Formatter.WriteToken(StreamTokenizer.TokenAndMark, ttCRLF);
   end;
 end;
 
-procedure HandleSpace(Parser: TParser; Formatter: TFormatterBase);
+procedure HandleSpace(StreamTokenizer: TStreamTokenizer; Formatter: TFormatterBase);
 begin
-  if Parser.Scan([#1..#9, #11, #12, #14..#32], [#1..#9, #11, #12, #14..#32]) then
-    Formatter.WriteToken(Parser.TokenAndMark, ttSpace);
+  if StreamTokenizer.Scan([#1..#9, #11, #12, #14..#32], [#1..#9, #11, #12, #14..#32]) then
+    Formatter.WriteToken(StreamTokenizer.TokenAndMark, ttSpace);
 end;
 
-procedure HandleSlashesComment(Parser: TParser; Formatter: TFormatterBase);
+procedure HandleSlashesComment(StreamTokenizer: TStreamTokenizer; Formatter: TFormatterBase);
 begin
-  HandleLineComment(Parser, Formatter, '//');
+  HandleLineComment(StreamTokenizer, Formatter, '//');
 end;
 
-procedure HandleLineComment(Parser: TParser; Formatter: TFormatterBase; CommentMark: string);
+procedure HandleLineComment(StreamTokenizer: TStreamTokenizer; Formatter: TFormatterBase; CommentMark: string);
 begin
-  if Parser.PeekLength(Length(CommentMark)) = CommentMark then
+  if StreamTokenizer.PeekLength(Length(CommentMark)) = CommentMark then
   begin
-    while (not Parser.IsEof) and (not Parser.IsEoln) do
-      Parser.Next;
+    while (not StreamTokenizer.IsEof) and (not StreamTokenizer.IsEoln) do
+      StreamTokenizer.Next;
 
-    Formatter.WriteToken(Parser.TokenAndMark, ttComment);
+    Formatter.WriteToken(StreamTokenizer.TokenAndMark, ttComment);
   end;
 end;
 
