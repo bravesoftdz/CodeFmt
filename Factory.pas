@@ -8,11 +8,35 @@ uses
   Classes, SysUtils;
 
 type
-  TDocumentType = (dtNone, dtCpp, dtPascal, dtEditorConfig);
+  { The document type to read. This determines which lexer will be used. }
+  TDocumentType = (
+    { Unknown document type}
+    dtNone,
 
-  TFormatterType = (ftHtml, ftRtf);
+    { CPP source }
+    dtCpp,
 
-procedure Process(FormatterType: TFormatterType; DocumentType: TDocumentType; InputStream, OutputStream: TStream);
+    { Pascal source}
+    dtPascal,
+
+    { EditorConfig configuration file }
+    dtEditorConfig
+  );
+
+  { The output type. This determines which formatter will be used. }
+  TFormatterType = (
+    { HTML }
+    ftHtml,
+
+    { Rich text format }
+    ftRtf
+  );
+
+{ Formats the given input stream and writes the formatted output into the output stream. }
+procedure Process(
+  FormatterType: TFormatterType;
+  DocumentType: TDocumentType;
+  InputStream, OutputStream: TStream);
 
 implementation
 

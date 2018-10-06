@@ -8,6 +8,7 @@ uses
   Classes, SysUtils;
 
 type
+  { Parses a stream of characters and returns tokens }
   TStreamTokenizer = class
   private
     FReadBuf: PChar;
@@ -21,17 +22,40 @@ type
   public
     constructor Create(InputStream: TStream);
     destructor Destroy; override;
+
+    { Advances the current position by one character }
     procedure Next;
+
+    { Returns the token that has been read so far and prepares the StreamTokenizer
+    for reading the following token. }
     function TokenAndMark: string;
+
+    { Returns the next available character without advancing the current position }
     function PeekNext: char;
+
+    { Returns a string that consists of the next characters without advancing
+    the current position }
     function PeekLength(Count: integer): string;
+
+    { Gets a value indicating whether all the characters have been read or not }
     function IsEof: boolean;
+
+    { Gets a value indicating whether the next character is an end of line }
     function IsEoln: boolean;
+
+    { Gets a value indicating whether the current position is equal to the
+    marked position }
     function IsEmptyToken: boolean;
+
+    { Advances the current position as long as the character is within the
+    validChars set. The first character must be within the firstChar set.
+    Returns true if the position was advanced, false otherwise. }
     function Scan(firstChar, validChars: TSysCharSet): boolean;
 
     { Gets the character at the current position of the reader. }
     property Current: char read GetCurrent;
+
+    { Gets the current position in the stream. }
     property Position: integer read FPosition;
   end;
 

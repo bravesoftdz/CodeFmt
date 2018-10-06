@@ -8,12 +8,20 @@ uses
   Classes, SysUtils, TokenTypes;
 
 type
+  { Base class for formatters. A formatter receives events from a lexer and
+  pretty prints tokens. }
   TFormatterBase = class
   private
+    { Holds the output stream into which the formatter writes its output }
     FOutputStream: TStream;
   protected
+    { Gets the output stream into which the formatter writes its output }
     property OutputStream: TStream read FOutputStream;
+
+    { Writes the given string to the output }
     procedure Write(const str: string);
+
+    { Writes the given string to the output, followed by a newline }
     procedure WriteLn(const str: string);
   public
     constructor Create(OutputStream: TStream);

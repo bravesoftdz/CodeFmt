@@ -8,26 +8,47 @@ uses
   Classes, SysUtils, StreamTokenizer, TokenTypes;
 
 type
+  { A callback method that is called when a token is found. }
   TLexerTokenFound = procedure(const Token: string; const TokenType: TTokenType) of object;
 
+  { Base class for a lexer }
   TLexerBase = class
   private
+    { Holds the callback method to call when a token is found }
     FTokenFound: TLexerTokenFound;
+
+    { Holds the stream tokenizer }
     FStreamTokenizer: TStreamTokenizer;
   protected
     procedure CurrentTokenFound(const TokenType: TTokenType);
     procedure Scan; virtual;
+
+    { Gets the callback method that is called when a token is found }
     property TokenFound: TLexerTokenFound read FTokenFound;
+
+    { Gets the stream tokenizer }
     property StreamTokenizer: TStreamTokenizer read FStreamTokenizer;
   public
     constructor Create(TokenFound: TLexerTokenFound);
     procedure FormatStream(InputStream: TStream);
   end;
 
+{ Handles CRLF tokens. A CRLF sequence is recognized as a single token. Single
+CR and single LF tokens are recognized as individual tokens. }
 procedure HandleCRLF(StreamTokenizer: TStreamTokenizer; TokenFound: TLexerTokenFound);
+
+{ Handles whitespace and invisible characters, except CRLF characters. }
 procedure HandleSpace(StreamTokenizer: TStreamTokenizer; TokenFound: TLexerTokenFound);
+
+{ Handles a double slash line comment }
 procedure HandleSlashesComment(StreamTokenizer: TStreamTokenizer; TokenFound: TLexerTokenFound);
-procedure HandleLineComment(StreamTokenizer: TStreamTokenizer; TokenFound: TLexerTokenFound; CommentMark: string);
+
+{ Handles a single line comment. The comment denoting characters are
+identified by the CommentMark parameter. }
+procedure HandleLineComment(
+  StreamTokenizer: TStreamTokenizer;
+  TokenFound: TLexerTokenFound;
+  CommentMark: string);
 
 implementation
 
