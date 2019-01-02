@@ -4,16 +4,17 @@ object MainForm: TMainForm
   Top = 133
   Width = 572
   Caption = 'Μορφοποίηση κώδικα'
-  ClientHeight = 356
+  ClientHeight = 345
   ClientWidth = 572
   Color = clBtnFace
+  DesignTimePPI = 168
   Font.Color = clWindowText
-  Font.Height = -11
-  Font.Name = 'MS Sans Serif'
+  Font.Height = -16
+  Font.Name = 'Tahoma'
   FormStyle = fsMDIForm
   Menu = MainMenu1
   OnCreate = FormCreate
-  LCLVersion = '1.6.0.4'
+  LCLVersion = '1.8.0.6'
   object ToolBar1: TToolBar
     Left = 0
     Height = 24
@@ -40,14 +41,14 @@ object MainForm: TMainForm
   end
   object StatusBar1: TStatusBar
     Left = 0
-    Height = 25
-    Top = 331
+    Height = 43
+    Top = 302
     Width = 572
     Panels = <>
   end
   object IpHtmlPanel1: TIpHtmlPanel
     Left = 0
-    Height = 307
+    Height = 278
     Top = 24
     Width = 572
     Align = alClient
@@ -59,6 +60,10 @@ object MainForm: TMainForm
     PrintSettings.MarginTop = 0.5
     PrintSettings.MarginRight = 0.5
     PrintSettings.MarginBottom = 0.5
+    PrintSettings.Preview.Left = 800
+    PrintSettings.Preview.Top = 450
+    PrintSettings.Preview.Width = 2400
+    PrintSettings.Preview.Height = 1350
     TabOrder = 2
   end
   object OpenDialog1: TOpenDialog
